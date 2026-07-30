@@ -22,7 +22,7 @@ Maintained by [TTQ](https://www.tonguetoquill.com).
 - **Page numbering** starting from page 2 per AFH 33-337 standards
 - **Highly Configurable** with numerous parameters for customization
 - **Comprehensive Indorsements** with full support for action lines, multiple indorsement types, and long indorsement chains
-- **Classification markings** with color-coded header/footer banners for UNCLASSIFIED, SECRET, and TOP SECRET (other banner text uses the default color)
+- **Classification markings** with color-coded header/footer banners for UNCLASSIFIED, CUI, CONFIDENTIAL, SECRET, and TOP SECRET (other banner text uses the default color), optional dissemination controls, and the DoDM 5200.48 CUI designation indicator block
 - **Custom footer taglines** for service-specific branding (e.g., "semper supra" for Space Force)
 - **Inline tables** with clean, formal formatting consistent with USAF correspondence standards
 
@@ -52,7 +52,7 @@ You can either clone the repository to pull all fonts or download just the files
 
 2. Initialize template from Typst Universe:
 ```bash
-typst init @preview/tonguetoquill-usaf-memo:3.0.0 my-memo
+typst init @preview/tonguetoquill-usaf-memo:4.0.0 my-memo
 cd my-memo
 ```
 
@@ -60,6 +60,9 @@ cd my-memo
 ```bash
 # Download the fonts used by the templates (example). Copy these into your project root or `fonts/` directory.
 curl -L -o Cinzel-Regular.ttf https://github.com/nibsbin/tonguetoquill-usaf-memo/raw/main/fonts/Cinzel/Cinzel-Regular.ttf
+curl -L -o CopperplateCC-Bold.otf https://github.com/nibsbin/tonguetoquill-usaf-memo/raw/main/fonts/CopperplateCC/CopperplateCC-Bold.otf
+curl -L -o CopperplateCC-Heavy.otf https://github.com/nibsbin/tonguetoquill-usaf-memo/raw/main/fonts/CopperplateCC/CopperplateCC-Heavy.otf
+curl -L -o LiberationMono-Regular.ttf https://github.com/nibsbin/tonguetoquill-usaf-memo/raw/main/fonts/LiberationMono/LiberationMono-Regular.ttf
 curl -L -o NimbusRomNo9L-Reg.otf https://github.com/nibsbin/tonguetoquill-usaf-memo/raw/main/fonts/NimbusRomanNo9L/NimbusRomNo9L-Reg.otf
 curl -L -o NimbusRomNo9L-RegIta.otf https://github.com/nibsbin/tonguetoquill-usaf-memo/raw/main/fonts/NimbusRomanNo9L/NimbusRomNo9L-RegIta.otf
 curl -L -o NimbusRomNo9L-Med.otf https://github.com/nibsbin/tonguetoquill-usaf-memo/raw/main/fonts/NimbusRomanNo9L/NimbusRomNo9L-Med.otf
@@ -87,7 +90,7 @@ cd tonguetoquill-usaf-memo
 Import the core functions for creating memorandums:
 
 ```typst
-#import "@preview/tonguetoquill-usaf-memo:3.0.0": frontmatter, mainmatter, backmatter, indorsement
+#import "@preview/tonguetoquill-usaf-memo:4.0.0": frontmatter, mainmatter, backmatter, indorsement
 ```
 
 **Minimal Example:**
@@ -180,7 +183,23 @@ Set `classification-level` in `frontmatter` to display color-coded banners in th
 )
 ```
 
-Banner color applies when the marking string (after trimming) begins with `"UNCLASSIFIED"` (green), `"SECRET"` (red), or `"TOP SECRET"` (orange). Any other text still appears in bold in the header and footer but uses the default text color (black). Placement is top and bottom center of every page.
+Banner color applies when the marking string (after trimming) begins with `"UNCLASSIFIED"` (green), `"SECRET"` (red), `"TOP SECRET"` (orange), `"CONFIDENTIAL"` (black), or `"CUI"` (black). Any other text still appears in bold in the header and footer but uses the default text color (black). Placement is top and bottom center of every page.
+
+Set `dissemination` alongside it to append a dissemination control to the banner, rendered as `LEVEL//DISSEMINATION`:
+
+```typst
+#show: frontmatter.with(
+  // ...
+  classification-level: "CUI",
+  dissemination: "SP-CTRL",        // banner reads "CUI//SP-CTRL"
+  cui-controlled-by: "123 ES/CC",  // designation indicator block, page 1 bottom right
+  cui-category: "PRVCY",
+  cui-limited-dissemination: "FEDCON",
+  cui-poc: "Jane Doe, 555-0100",
+)
+```
+
+The CUI designation indicator block (DoDM 5200.48, Table 1) is rendered in the bottom-right corner of page 1 whenever `classification-level` begins with `"CUI"` and at least one `cui-*` field is set.
 
 ## API Reference
 
@@ -195,42 +214,55 @@ Configures the memorandum header and establishes document-wide settings. Applied
 **Required Parameters:**
 - `subject`: Memorandum subject line (must be descriptive and in title case)
 - `memo-for`: Recipients (string or array of office symbols)
-- `memo-from`: Sender information (string or array with office symbol, organization, address)
+
+`memo-from` is optional — omit it for a Memorandum for Record, which has no FROM element.
 
 **Key Parameters:**
 ```typst
 #show: frontmatter.with(
   letterhead-title: "DEPARTMENT OF THE AIR FORCE",           // Organization title
   letterhead-caption: "[YOUR SQUADRON/UNIT NAME]",           // Sub-organization
-  letterhead-seal: none,                                     // Organization seal image
+  letterhead-seal: none,                                     // Organization seal image (left corner)
   letterhead-seal-subtitle: none,                            // Optional line under seal (9pt bold caps)
+  letterhead-emblem: none,                                   // Optional image opposite the seal (right corner)
+  letterhead-emblem-height: 1in,                             // Emblem fit-box height; reduce for shorter emblems
   date: none,                                                // Date (defaults to today; also accepts ISO string "YYYY-MM-DD")
-  memo-for: ("[OFFICE1]", "[OFFICE2]"),                     // Recipients array
-  memo-from: ("[YOUR/SYMBOL]", "[Organization]", "[Address]"), // Sender info array
+  memo-for: ("[OFFICE1]", "[OFFICE2]"),                     // Recipients array (rendered in uppercase)
+  memo-from: ("[YOUR/SYMBOL]", "[Organization]", "[Address]"), // Sender info array (omit for a Memorandum for Record)
   subject: "[Your Subject in Title Case - Required]",        // Subject line
   references: ("AFI 123-45", "AFMAN 67-89"),                // Optional references
 
   // Styling options
-  letterhead-font: ("times new roman", "NimbusRomNo9L"),   // Letterhead fonts (defaults match body)
-  body-font: ("times new roman", "NimbusRomNo9L"),          // Body fonts
+  letterhead-font: ("Copperplate CC", "NimbusRomNo9L"),     // Letterhead fonts
+  body-font: ("NimbusRomNo9L",),                            // Body fonts
   font-size: 12pt,                                          // Font size (default 12pt; 10pt minimum per AFH 33-337 §5)
   memo-for-cols: 3,                                         // Recipient columns
 
   // Classification and branding
-  classification-level: none,                               // e.g. "UNCLASSIFIED", "SECRET", or "TOP SECRET" for standard colors
+  classification-level: none,                               // e.g. "UNCLASSIFIED", "CUI", "CONFIDENTIAL", "SECRET", or "TOP SECRET"
+  dissemination: none,                                      // Appended to the banner as "LEVEL//DISSEMINATION" (e.g. "SP-CTRL")
   footer-tag-line: none,                                    // Custom footer tagline (e.g., "semper supra")
 
-  // Paragraph numbering
-  auto-numbering: true,                                     // Automatic AFH 33-337 paragraph numbering (default true)
+  // CUI designation indicator block (DoDM 5200.48, Table 1) — page 1, bottom right.
+  // Rendered only when classification-level starts with "CUI" and at least one field is set.
+  cui-controlled-by: none,                                  // Controlling office
+  cui-category: none,                                       // CUI category (e.g. "PRVCY")
+  cui-limited-dissemination: none,                          // Limited dissemination control (e.g. "FEDCON")
+  cui-poc: none,                                            // Point of contact
+
+  memo-style: "usaf",                                       // "usaf" (default) or "daf"
 )
 ```
 
+**References placement.** A single reference is rendered inline in parentheses after the SUBJECT text; two or more are rendered as a lettered `References:` block per AFH 33-337.
+
 **Responsibilities:**
 - Sets page layout with 1-inch margins
-- Renders letterhead with optional seal and optional `letterhead-seal-subtitle` under the seal
+- Renders letterhead with optional seal, optional `letterhead-seal-subtitle` under the seal, and optional `letterhead-emblem` in the opposite corner
 - Renders date, MEMORANDUM FOR, FROM, SUBJECT, and references sections
-- Establishes typography and spacing rules
+- Establishes typography and spacing rules, including a monospace face for raw/code text
 - Renders color-coded classification banners in header and footer when `classification-level` is set
+- Renders the CUI designation indicator block when CUI indicator fields are set
 - Renders custom footer tagline when `footer-tag-line` is set
 - Stores configuration for downstream sections
 
@@ -246,7 +278,6 @@ Processes the memorandum body content with automatic paragraph numbering. Applie
 - Applies AFH 33-337 hierarchical paragraph numbering (1., a., (1), (a))
 - Handles proper indentation and spacing
 - Auto-detects single vs. multiple paragraphs
-- When `auto-numbering: false` is set in `frontmatter`, base-level paragraphs render flush left without numbering; only explicitly bulleted or numbered items (list/enum) receive numbering
 - Supports inline tables with formal black-border formatting
 - Inherits configuration from frontmatter
 
@@ -259,7 +290,8 @@ Renders the closing section including signature block and optional attachments/c
 #backmatter(
   signature-block: ("[NAME, Rank, USAF]", "[Title]"),      // Signature lines (required)
   signature-blank-lines: 4,                                // Blank lines above signature
-  attachments: ("Attachment 1", "Attachment 2"),            // Optional attachments
+  signing-field: none,                                     // Optional content overlaid in the space above the signature block
+  attachments: ("Attachment 1", "Attachment 2"),            // Optional attachments (a single attachment is not numbered)
   cc: ("[OFFICE/SYMBOL]",),                                // Courtesy copies
   distribution: ("[OFFICE]",),                             // Distribution list
   leading-pagebreak: false,                                // Force page break before backmatter
@@ -267,7 +299,7 @@ Renders the closing section including signature block and optional attachments/c
 ```
 
 **Responsibilities:**
-- Renders signature block with orphan prevention
+- Renders signature block with orphan prevention, shifting it left when a long name would otherwise overrun the right margin
 - Renders attachments section with smart page breaks
 - Renders cc section
 - Renders distribution list
@@ -282,15 +314,18 @@ Creates an indorsement for forwarding or commenting on a memorandum. Called as a
   to: "RECIPIENT/SYMBOL",                                   // Recipient organization
   signature-block: ("[NAME, Rank, USAF]", "[Title]"),      // Signature lines
   signature-blank-lines: 4,                                // Blank lines above signature
-  attachments: none,                                        // Optional attachments
-  cc: none,                                                 // Courtesy copies
-  date: datetime.today(),                                  // Indorsement date (also accepts ISO string "YYYY-MM-DD")
+  signing-field: none,                                     // Optional content overlaid in the space above the signature block
+  date: none,                                              // Indorsement date; blank renders a fill-in rule (also accepts ISO string "YYYY-MM-DD")
   format: "standard",                                      // "standard", "informal", or "separate_page"
   action: none,                                            // none (default), "undecided", "approve", or "disapprove"
 )[
   Your indorsement content here.
 ]
 ```
+
+**The `date` parameter.** Per AFH 33-337 Ch. 14 an indorsement is dated when the endorser signs it, which is usually unknown at compile time. Leaving `date` unset therefore renders a horizontal fill-in rule to be completed by hand rather than stamping today's date.
+
+**Empty bodies.** An indorsement with an action line but no body text (`[]`) collapses the body's surrounding spacing, so the signature block still lands on AFH 33-337's "fifth line below the last line of text" anchor.
 
 **The `action` parameter:**
 - `none` (default): No action line displayed
@@ -301,8 +336,9 @@ Creates an indorsement for forwarding or commenting on a memorandum. Called as a
 **Responsibilities:**
 - Auto-numbers indorsements (1st Ind, 2d Ind, 3d Ind, etc.)
 - Renders indorsement header with from/to
+- Upgrades a `"standard"` indorsement to the fuller separate-page header when it no longer fits on the action document's page and is pushed to a new page
 - Processes indorsement body content
-- Renders signature block and backmatter sections
+- Renders signature block
 - References original memo metadata
 
 ## Development

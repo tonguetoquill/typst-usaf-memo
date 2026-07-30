@@ -4,14 +4,54 @@ All notable changes to `tonguetoquill-usaf-memo` are documented here.
 
 ---
 
-## [Unreleased]
+## [4.0.0] — 2026-07-30
+
+Synchronises the package with the downstream fork maintained in
+[`tonguetoquill/airmark-quiver`](https://github.com/tonguetoquill/airmark-quiver),
+which carried roughly two months of fixes that had not been merged back. All
+public parameters keep this project's `kebab-case` convention; the fork's
+`snake_case` spellings were translated on the way in.
+
+### Added
+
+- **`letterhead-emblem` and `letterhead-emblem-height`.** Optional image placed in the corner opposite the seal. The seal and emblem share one reference band, so both bleed the same 0.5 in past the margin and centre on the same axis regardless of the emblem's height.
+- **CUI designation indicator block** (DoDM 5200.48, Table 1) via `cui-controlled-by`, `cui-category`, `cui-limited-dissemination`, and `cui-poc`. Rendered in the bottom-right corner of page 1 when `classification-level` starts with `"CUI"` and at least one field is set. Emitted as a bottom float so it reserves flow space (body text can never overlap it) and stays pinned to page 1.
+- **`dissemination` frontmatter parameter.** Appends a dissemination control to the classification banner as `LEVEL//DISSEMINATION`.
+- **`CONFIDENTIAL` and `CUI` classification colors** (both black, per DoD/CAPCO marking guidance).
+- **Monospace face for raw text.** Liberation Mono (metric-compatible with Courier New) is bundled and applied to inline code and code blocks via `DEFAULT_MONO_FONTS`.
+- **`signing-field` on `backmatter` and `indorsement`.** Optional content overlaid in the blank space above the signature block, for form-fillable signature widgets.
+- **`date-placeholder-line` utility.** Horizontal fill-in rule sized for a handwritten date.
+- **Automatic separate-page indorsement headers.** A `"standard"` indorsement pushed onto a new page now carries the fuller separate-page identifying header instead of the terse same-page form, per AFH 33-337. Indorsement headers are non-breakable and sticky, so they never split across a page boundary or detach from the content they head.
+- **Long-name signature blocks.** When the widest signature line would overrun the right margin at the standard 4.5 in anchor, the block shifts left just enough to fit, per the AFH 33-337 "signature block adjusted to the left" example.
 
 ### Changed
 
 - **Breaking: all public parameters renamed from `snake_case` to `kebab-case`** for consistency with Typst idiom. Update call sites as follows:
-  - `frontmatter`: `memo_for` → `memo-for`, `memo_from` → `memo-from`, `letterhead_title` → `letterhead-title`, `letterhead_caption` → `letterhead-caption`, `letterhead_seal` → `letterhead-seal`, `letterhead_seal_subtitle` → `letterhead-seal-subtitle`, `letterhead_font` → `letterhead-font`, `body_font` → `body-font`, `font_size` → `font-size`, `memo_for_cols` → `memo-for-cols`, `classification_level` → `classification-level`, `footer_tag_line` → `footer-tag-line`, `auto_numbering` → `auto-numbering`, `memo_style` → `memo-style`.
+  - `frontmatter`: `memo_for` → `memo-for`, `memo_from` → `memo-from`, `letterhead_title` → `letterhead-title`, `letterhead_caption` → `letterhead-caption`, `letterhead_seal` → `letterhead-seal`, `letterhead_seal_subtitle` → `letterhead-seal-subtitle`, `letterhead_font` → `letterhead-font`, `body_font` → `body-font`, `font_size` → `font-size`, `memo_for_cols` → `memo-for-cols`, `classification_level` → `classification-level`, `footer_tag_line` → `footer-tag-line`, `memo_style` → `memo-style`.
   - `backmatter`: `signature_block` → `signature-block`, `signature_blank_lines` → `signature-blank-lines`, `leading_pagebreak` → `leading-pagebreak`.
   - `indorsement`: `signature_block` → `signature-block`, `signature_blank_lines` → `signature-blank-lines`.
+- **Breaking: `memo-from` is now optional.** Omitting it suppresses the FROM element entirely, for a Memorandum for Record. It is no longer asserted as required.
+- **Breaking: `indorsement` no longer dates itself.** `date` defaults to `none`, which renders a fill-in rule rather than stamping the compile date — an indorsement is dated when the endorser signs it, which is generally not known at compile time. Pass `date` explicitly to restore a printed date.
+- **Breaking: a single reference is rendered inline** in parentheses after the SUBJECT text; the lettered `References:` block is used only for two or more, per AFH 33-337's single-reference rule.
+- **Breaking: a single attachment is not numbered.** Numbering applies only to two or more attachments.
+- **Default letterhead font is now `("Copperplate CC", "NimbusRomNo9L")`** and the default body font `("NimbusRomNo9L",)`; `"times new roman"` is no longer listed, as NimbusRomNo9L is a metric-compatible clone. `CopperplateCC-Bold.otf` is bundled alongside the existing Heavy weight.
+- **Letterhead color darkened** from `#204093` to `#355e93`.
+- **MEMORANDUM FOR recipients are uppercased** on render.
+- **Blank-line spacing is measured from a single cached line stride.** The legacy `spacing.vertical` / `spacing.line-height` constants and the `BLANK_LINE_STEP` state are gone, along with `blank-lines`' `weak` parameter — AFH 33-337 counts blank lines as structural elements, so they no longer collapse against adjacent block spacing.
+- **Body paragraphs are wrapped in blocks** so the document-wide `block.above` rule contributes an identical gap above every paragraph, instead of the first and middle paragraphs rendering tighter than the last.
+- **Empty bodies collapse to zero layout.** Zero-width paragraphs are filtered before rendering, and an indorsement with an empty body suppresses the header→body and action→body gaps, so the signature block still lands on the "fifth line below the last line of text" anchor.
+- **Frontmatter metadata is published under a `<usaf-memo-config>` label** and read with `query(<usaf-memo-config>).first()` rather than `query(metadata).last()`, so unrelated `metadata()` in user content cannot shadow it.
+- **The signature-block hanging indent is now 0.5 em** (roughly two characters) rather than 2 em, per AFH 33-337's "begin under the third character of the line above".
+
+### Fixed
+
+- **Backmatter sections no longer destabilise layout.** `render-backmatter-section` decided whether a section fit by reading `here().position().y` and then emitting an explicit `pagebreak()`, feeding its own layout query back into its input. With the spacing changes above this could oscillate until Typst gave up ("layout did not converge within 5 attempts"), leaving page numbers off by one in the compiled output. The section is now emitted as a non-breakable block, so Typst's own breaker moves it as a unit and the continuation label is the only thing the query drives.
+
+### Removed
+
+- **Breaking: `auto-numbering` frontmatter parameter.** Paragraph numbering now follows AFH 33-337 unconditionally: a single paragraph is unnumbered, two or more are numbered. `render-body` no longer accepts `auto-numbering` either.
+- **Breaking: `attachments` and `cc` parameters on `indorsement`.** Attachment and courtesy-copy listings belong to the originating memorandum's backmatter.
+- **Breaking: `action: "none"` as a string.** Only `none`, `"undecided"`, `"approve"`, and `"disapprove"` are accepted; `render-action-line` asserts accordingly.
 
 ---
 

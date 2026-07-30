@@ -14,46 +14,41 @@
 
 #import "config.typ": CLASSIFICATION_COLORS, counters, paragraph-config, spacing
 
-// Shared measured line-stride cache used by blank-line spacing and body
-// line-count heuristics. Value is a `length` set once in `frontmatter`.
+// Shared measured line-stride cache used by body line-count heuristics.
+// Value is a `length` set once in `frontmatter`.
 #let LINE_STRIDE = state("LINE_STRIDE")
-// Shared blank-line step cache used by structural spacing.
-#let BLANK_LINE_STEP = state("BLANK_LINE_STEP")
 
 /// Creates vertical spacing equivalent to multiple blank lines.
 ///
-/// Each step matches one row of the body paragraph line grid.
+/// Adds `count` wrapped-line strides on top of the natural inter-paragraph
+/// gap, so a blank line occupies exactly the same vertical space as a line
+/// produced by natural paragraph wrapping. The stride is measured from
+/// `LINE_STRIDE` (cached in `frontmatter`) and falls back to an inline
+/// measurement when the cache is unset.
+///
+/// Spacing is non-weak: AFH 33-337 counts blank lines as structural elements
+/// of the memorandum ("on the second line below…"), so they must not collapse
+/// against adjacent block spacing the way ordinary typographic whitespace does.
 ///
 /// - count (int): Number of blank lines to create
-/// - weak (bool): Whether spacing can be compressed at page breaks
 /// -> content
-#let blank-lines(count, weak: true) = {
-  if count == 0 {
-    v(0em, weak: weak)
-  } else {
-    context {
-      let measured-stride = {
-        let one-line = measure(par(spacing: 0pt)[x]).height
-        measure(par(spacing: 0pt)[x#linebreak()x]).height - one-line
-      }
-      // Scale legacy visual step with current font size:
-      // 19.05pt was tuned for 12pt body text.
-      let em-size = measure(box(width: 1em)[]).width
-      let legacy-scaled = spacing.vertical * (em-size / 12pt)
-      let fallback-step = calc.max(measured-stride, legacy-scaled)
-      let cached-step = BLANK_LINE_STEP.get()
-      let step = if cached-step != none { cached-step } else { fallback-step }
-      v(step * count, weak: weak)
+#let blank-lines(count) = {
+  if count <= 0 { return }
+  context {
+    let stride = LINE_STRIDE.get()
+    if stride == none {
+      let one-line = measure(par(spacing: 0pt)[x]).height
+      stride = measure(par(spacing: 0pt)[x#linebreak()x]).height - one-line
     }
+    v(stride * count)
   }
 }
 
 /// Creates vertical spacing equivalent to one blank line.
 /// Convenience function for single line spacing.
 ///
-/// - weak (bool): Whether spacing can be compressed at page breaks
 /// -> content
-#let blank-line(weak: true) = blank-lines(1, weak: weak)
+#let blank-line() = blank-lines(1)
 
 // =============================================================================
 // GENERAL UTILITY FUNCTIONS
@@ -121,10 +116,30 @@
   }
 }
 
+/// Renders a horizontal rule sized to fit a handwritten date.
+///
+/// Used for indorsements whose signing date is unknown at compile time: the
+/// endorser writes the date on the line by hand when signing. The rule sits at
+/// the baseline with one line of height above it so handwritten text can be
+/// written on the line without colliding with surrounding header text.
+///
+/// - width (length): Length of the fill-in rule; defaults to fit a long date
+///   such as "15 September 2026".
+/// -> content
+#let date-placeholder-line(width: 1in) = box(
+  width: width,
+  height: 1em,
+  // Keep the rule on the line's baseline so it aligns with where the printed
+  // date would sit. The 1em box height reserves the writing space above it.
+  // (A positive baseline shift would drop the rule a full line too low.)
+  baseline: 0pt,
+  stroke: (bottom: 0.5pt + black),
+)
+
 /// Gets the banner color for a classification marking.
 ///
-/// Matches when `level` (trimmed) starts with a known prefix: TOP SECRET, SECRET, or UNCLASSIFIED.
-/// Otherwise returns black.
+/// Matches when `level` (trimmed) starts with a known prefix: TOP SECRET, SECRET,
+/// CONFIDENTIAL, CUI, or UNCLASSIFIED. Otherwise returns black.
 ///
 /// - level (str): Marking string shown in header/footer
 /// -> color
@@ -133,8 +148,8 @@
     return rgb(0, 0, 0)
   }
   let s = level.trim()
-  // "TOP SECRET" before "SECRET" so the full phrase matches first.
-  let level-order = ("TOP SECRET", "SECRET", "UNCLASSIFIED")
+  // Longest-prefix-first so e.g. "TOP SECRET" wins over "SECRET".
+  let level-order = ("TOP SECRET", "SECRET", "CONFIDENTIAL", "CUI", "UNCLASSIFIED")
   for base-level in level-order {
     if s.starts-with(base-level) {
       return CLASSIFICATION_COLORS.at(base-level)
