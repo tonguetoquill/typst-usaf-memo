@@ -20,12 +20,24 @@
   font,
   letterhead-seal: none,
   letterhead-seal-subtitle: none,
+  letterhead-emblem: none, // optional image placed opposite the seal (right side)
+  letterhead-emblem-height: 1in, // emblem fit-box height; reduce for shorter emblems
 ) = {
   font = ensure-array(font)
   title = ensure-string(title)
   caption = ensure-string(caption)
   title = upper(title)
   caption = upper(caption)
+
+  // Letterhead corner geometry. The seal (left) and emblem (right) share one
+  // reference band so the corners stay in parity: both bleed `corner-overhang`
+  // past the page margin and center on the same axis (`band-center`). The
+  // emblem may be shorter than the band but stays centered on that axis.
+  let corner-overhang = 0.5in
+  let corner-width = 2in
+  let band-height = 1in // seal height; also the emblem's reference band
+  let band-top = -band-height / 2 // puts the band center at dy 0
+  let band-center = band-top + band-height / 2
 
   place(
     dy: 0.625in - spacing.margin,
@@ -39,6 +51,7 @@
           align(center)[
             #set text(12pt, font: font, fill: LETTERHEAD_COLOR, weight: "bold")
             #title\
+            #v(1pt)
             #text(10.5pt)[#caption]
           ],
         )
@@ -49,28 +62,42 @@
   if letterhead-seal != none {
     let seal-body = if falsey(letterhead-seal-subtitle) {
       block[
-        #fit-box(width: 2in, height: 1in)[#letterhead-seal]
+        #fit-box(width: corner-width, height: band-height)[#letterhead-seal]
       ]
     } else {
       // Isolate seal column from document `font-size`: stack `em` spacing and subtitle
       // must not scale with body text (see frontmatter `set text(size: font-size)`).
-      block(width: 2in)[
+      // Subtitle is wrapped in `box` so it stays on one line and may extend past
+      // the seal's 2in column rather than wrapping.
+      block[
         #set text(9pt, font: font, fill: LETTERHEAD_COLOR, weight: "bold")
-        #align(left)[
-          // Spacing applies between positional stack children only, not one `[…]` body.
-          #stack(
-            spacing: .8em,
-            fit-box(width: 2in, height: 1in)[#letterhead-seal],
-            upper(ensure-string(letterhead-seal-subtitle)),
-          )
-        ]
+        // Spacing applies between positional stack children only, not one `[…]` body.
+        #stack(
+          spacing: 0.5em,
+          fit-box(width: corner-width, height: band-height)[#letterhead-seal],
+          box(upper(ensure-string(letterhead-seal-subtitle))),
+        )
       ]
     }
     place(
       left + top,
-      dx: -0.5in,
-      dy: -.5in,
+      dx: -corner-overhang,
+      dy: band-top,
       seal-body,
+    )
+  }
+
+  if letterhead-emblem != none {
+    // Mirror the seal: same overhang and width, centered on the seal's band
+    // axis. Placing the emblem's top at `band-center - height/2` keeps its
+    // center on `band-center` for any (possibly shorter) emblem height.
+    place(
+      right + top,
+      dx: corner-overhang,
+      dy: band-center - letterhead-emblem-height / 2,
+      block[
+        #fit-box(width: corner-width, height: letterhead-emblem-height, alignment: right + horizon)[#letterhead-emblem]
+      ],
     )
   }
 }
@@ -98,9 +125,9 @@
     "  ",
     align(left)[
       #if type(recipients) == array {
-        create-auto-grid(recipients, column-gutter: spacing.tab, cols: cols)
+        create-auto-grid(recipients.map(upper), column-gutter: spacing.tab, cols: cols)
       } else {
-        recipients
+        upper(recipients)
       }
     ],
   )
@@ -120,19 +147,27 @@
 
 // AFH 33-337 "SUBJECT:": "In all uppercase letters place 'SUBJECT:', flush with the
 // left margin, on the second line below the last line of the FROM element"
-#let render-subject-section(subject-text) = {
+#let render-subject-section(subject-text, inline-reference: none) = {
   blank-line()
+  let content = if inline-reference != none {
+    [#subject-text (#box(inline-reference))]
+  } else {
+    [#subject-text]
+  }
   grid(
     columns: (auto, auto, 1fr),
-    "SUBJECT:", "  ", [#subject-text],
+    "SUBJECT:", "  ", content,
   )
 }
 
+// AFH 33-337: only render References block for two or more references.
+// A single reference is rendered inline after the SUBJECT text instead.
 #let render-references-section(references) = {
-  if not falsey(references) {
+  if type(references) == array and references.len() >= 2 {
     blank-line()
     grid(
       columns: (auto, auto, 1fr),
+      // Spread the entries as enum items lettered "(a) (b) (c)" per AFH 33-337.
       "References:", "  ", enum(..references, numbering: "(a) ", body-indent: 0pt),
     )
   }
@@ -142,46 +177,87 @@
 // SIGNATURE BLOCK
 // =============================================================================
 // AFH 33-337 "Signature Block": "Start the signature block on the fifth line below
-// the last line of text and 4.5 inches from the left edge of the page"
+// the last line of text and 4.5 inches from the left edge of the page or three
+// spaces to the right of page center"
 // AFH 33-337 "Do not place the signature element on a continuation page by itself"
+// AFH 33-337 long-name example: "Signature block adjusted to the left" when a
+// long name would otherwise exceed the right margin.
 
-#let render-signature-block(signature-lines, signature-blank-lines: 4) = {
+#let render-signature-block(signature-lines, signature-blank-lines: 4, signing-field: none) = {
   signature-lines = ensure-array(signature-lines)
-  // AFH 33-337: "The signature block is never on a page by itself"
-  // Note: Perfect enforcement isn't feasible without over-engineering
-  // We use weak: false spacing and breakable: false to discourage orphaning
-  // AFH 33-337: "fifth line below" = 4 blank lines between text and signature block
-  blank-lines(signature-blank-lines, weak: false)
-  block(breakable: false)[
-    #align(left)[
-      // AFH 33-337: "4.5 inches from the left edge of the page"
-      // We use (4.5in - margin) because Typst's pad() is relative to the text area, not page edge
-      #pad(left: 4.5in - spacing.margin)[
-        #text(hyphenate: false)[
-          #for line in signature-lines {
-            par(hanging-indent: 4 * 0.5em, line)
-          }
+  // AFH 33-337: "fifth line below" = 4 blank lines between text and signature block.
+  // breakable: false discourages orphaning the signature block onto a page by itself.
+  blank-lines(signature-blank-lines)
+  // AFH 33-337 allows two equivalent anchors: 4.5in from the left edge, or three
+  // spaces right of page center. On 8.5in stock these coincide (page center =
+  // 4.25in; three TNR-12pt spaces ≈ 0.25in), so we use 4.5in as the canonical
+  // anchor. pad() is relative to the text area, hence (4.5in - margin).
+  let default-pad = 4.5in - spacing.margin
+  context {
+    // Measure each line at its rendered settings to detect long-name overflow.
+    let body-width = page.width - 2 * spacing.margin
+    let widest = 0pt
+    for line in signature-lines {
+      let w = measure(text(hyphenate: false, line)).width
+      if w > widest { widest = w }
+    }
+    // If the widest line would overflow the right margin at the standard
+    // anchor, shift the block left just enough to fit. Clamp at 0 so the
+    // block never crosses the left margin.
+    let available = body-width - default-pad
+    let left-pad = if widest > available {
+      let shifted = body-width - widest
+      if shifted < 0pt { 0pt } else { shifted }
+    } else {
+      default-pad
+    }
+    block(breakable: false)[
+      #if signing-field != none {
+        let stride = {
+          let s = LINE_STRIDE.get()
+          if s == none {
+            let one-line = measure(par(spacing: 0pt)[x]).height
+            measure(par(spacing: 0pt)[x#linebreak()x]).height - one-line
+          } else { s }
+        }
+        place(
+          dx: left-pad,
+          dy: -(stride * signature-blank-lines),
+          box(width: body-width - left-pad, height: stride * signature-blank-lines, signing-field),
+        )
+      }
+      #align(left)[
+        #pad(left: left-pad)[
+          #text(hyphenate: false)[
+            #for line in signature-lines {
+              // AFH 33-337: "indent the next line to begin under the third character
+              // of the line above" — 2-character indent ≈ 1em in Times New Roman 12pt
+              par(hanging-indent: .5em, line)
+            }
+          ]
         ]
       ]
     ]
-  ]
+  }
 }
 
 // =============================================================================
 // ACTION LINE RENDERING
 // =============================================================================
 // Renders the Approve / Disapprove action line for indorsement memos.
-// action: "none" = no action line displayed (hidden), "undecided" = both options
-// rendered plain (no circle), "approve" = Approve circled,
-// "disapprove" = Disapprove circled. The action line is rendered when
-// action is "undecided", "approve", or "disapprove".
+// action: "undecided" = both options rendered plain (no circle),
+// "approve" = Approve circled, "disapprove" = Disapprove circled.
+// Empty/none suppression is handled by the caller before this is invoked.
 
-#let render-action-line(action) = {
+#let render-action-line(action, trailing-blank-line: true) = {
   assert(
-    action in ("none", "undecided", "approve", "disapprove"),
-    message: "action must be \"none\", \"undecided\", \"approve\", or \"disapprove\"",
+    action in ("undecided", "approve", "disapprove"),
+    message: "action must be \"undecided\", \"approve\", or \"disapprove\"",
   )
-  blank-line()
+  // No leading blank-line: the caller (indorsement.typ) already emits the
+  // header→content gap once. The action line's `block(sticky: true)`
+  // additionally inherits `block.above: spacing.line` so the visual gap
+  // above matches the gap above a body's first paragraph.
   // Circle the selected option using a box with rounded corners
   // Use baseline parameter to maintain vertical text alignment
   let approve-text = if action == "approve" {
@@ -202,6 +278,13 @@
   // using the same sticky-block pattern that body.typ applies to the last
   // paragraph, per AFH 33-337 §11 orphan-prevention rules.
   block(sticky: true)[#approve-text / #disapprove-text]
+  // Trailing blank-line places the body's first paragraph one line below
+  // the action, mirroring the gap above it. Suppressed when the body is
+  // empty so the signature block's own 4-line gap lands on AFH 33-337's
+  // "fifth line below the last line of text" anchor.
+  if trailing-blank-line {
+    blank-line()
+  }
 }
 
 // =============================================================================
@@ -268,9 +351,13 @@
         text()[#(section-label + " (continued on next page)")]
       }
       continuation-text
-      pagebreak()
     }
-    formatted-content
+    // No explicit pagebreak: `breakable: false` lets Typst's own breaker move
+    // the section to the next page as a unit when it does not fit. An explicit
+    // pagebreak here would feed this context's layout query back into its own
+    // input, and the two could chase each other until layout gives up — the
+    // label and the break must be decided by one mechanism, not two.
+    block(breakable: false, formatted-content)
   }
 }
 
@@ -305,7 +392,9 @@
       (if attachment-count == 1 { "Attachment" } else { str(attachment-count) + " Attachments" })
         + " (listed on next page):"
     )
-    render-backmatter-section(attachments, section-label, numbering-style: "1.", continuation-label: continuation-label)
+    // AFH 33-337: a single attachment is not numbered; numbering applies to two or more.
+    let numbering-style = if attachment-count == 1 { none } else { "1." }
+    render-backmatter-section(attachments, section-label, numbering-style: numbering-style, continuation-label: continuation-label)
   }
 
   if cc != none and cc.len() > 0 {
