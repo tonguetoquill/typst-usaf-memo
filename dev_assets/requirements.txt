@@ -1,2 +1,2 @@
-typst
+typst>=0.15
 pymupdf

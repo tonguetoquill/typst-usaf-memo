@@ -113,6 +113,10 @@ it reports 161 failing sections against the unfixed source.
 The sweep is what makes the check worth having. A single fixture sits on one
 side of the band and passes either way.
 
+Re-run on Typst 0.15.1 after the compiler bump: the sweep holds unchanged, and
+all four templates render byte-identical under 0.14.0 and 0.15.1. The
+introspection the note is decided from behaves the same across the two.
+
 ## Why the change reaches three files
 
 The reservation belongs to the block above the section, and the sections have to

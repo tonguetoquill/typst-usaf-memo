@@ -50,7 +50,7 @@ You can either clone the repository to pull all fonts or download just the files
 
 ### Local Installation
 
-1. [Install Typst](https://github.com/typst/typst?tab=readme-ov-file#installation).
+1. [Install Typst](https://github.com/typst/typst?tab=readme-ov-file#installation) 0.15.1 or newer.
 
 2. Initialize template from Typst Universe:
 ```bash

@@ -10,7 +10,7 @@ Thank you for your interest in contributing! This project is a [Typst](https://t
    cd tonguetoquill-usaf-memo
    ```
 
-2. **Install Typst** — follow the [official instructions](https://github.com/typst/typst?tab=readme-ov-file#installation).
+2. **Install Typst 0.15.1 or newer** — follow the [official instructions](https://github.com/typst/typst?tab=readme-ov-file#installation). The `dev_assets/` checks compile through the Python `typst` package instead, which tracks its own release line; `requirements.txt` floors it at the matching 0.15 series.
 
 3. **Build the example PDFs** to verify everything works:
    ```bash

@@ -6,6 +6,10 @@ All notable changes to `tonguetoquill-usaf-memo` are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- **Requires Typst 0.15.1 or newer.** The manifest's `compiler` floor moves from 0.14.0, so the package no longer loads on 0.14.x. Nothing in the source needed the newer compiler: all four templates render identically — same page, position and text for every line — under 0.14.0 and 0.15.1, and the closing-section sweep holds on both.
+
 ### Fixed
 
 - **A backmatter list running onto the next page says so on the page it leaves.** The note AFH 33-337 wants there — "3 Attachments (listed on next page):", or the neutral "(continued on next page)" for `cc:` and `DISTRIBUTION:` — is decided by reading the page the section landed on rather than by predicting it from inside the section, which reported the top of the page it had already moved to and so never fired. Each closing block now reserves the following section's lead-in and note line as breaking height, reclaimed immediately, so the note is guaranteed room on the departing page; where that reservation does not fit, the signature block travels with its sections instead of stranding them. Layout is unchanged wherever nothing splits.
