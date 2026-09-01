@@ -221,9 +221,8 @@
   signature-blank-lines: 4,
   signing-field: none,
   // Lines of breaking height reserved below the block for the backmatter
-  // lead-in and its continuation note. Reserved inside the unbreakable block
-  // and reclaimed immediately after, so the reservation changes only where the
-  // block may break, never where anything is drawn.
+  // lead-in and its continuation note. Reclaimed immediately after, so it moves
+  // where the block may break and nothing else.
   reserved-lines: 0,
 ) = {
   signature-lines = ensure-array(signature-lines)
@@ -310,17 +309,17 @@
               // of the line above" — 2-character indent ≈ 1em in Times New Roman 12pt
               par(hanging-indent: .5em, line)
             }
-            // The anchor the backmatter reads its page from. Inside the
-            // unbreakable block, so it reports the page the signature landed
-            // on and cannot be carried off by a section that moves.
+            // The page the backmatter compares its own against. Must stay
+            // inside the unbreakable block: a marker outside one travels with
+            // the section that moves.
             #metadata(none)<usaf-memo-flow-anchor>
             #v(stride * reserved-lines)
           ]
         ]
       ]
     ]
-    // Reclaim the reservation: the space counted toward the block's breaking
-    // height, but the backmatter emits its own lead-in below.
+    // The reservation counted toward breaking height only; the backmatter
+    // emits its own lead-in below.
     v(stride * -reserved-lines)
   }
 }
@@ -408,9 +407,8 @@
   numbering-style: none,
   continuation-label: none,
   // Lines of breaking height reserved below this section for the lead-in and
-  // continuation note of the section that follows it, as the signature block
-  // reserves for the first section. Reclaimed immediately after the block, so
-  // it moves where a break may fall and nothing else.
+  // continuation note of the section that follows it. Reclaimed immediately
+  // after, so it moves where a break may fall and nothing else.
   reserved-lines: 0,
 ) = {
   let formatted-content = {
@@ -439,17 +437,15 @@
     // layout query back into its own input and the two would chase each other
     // until layout gave up.
     //
-    // The note is decided by OBSERVING where that breaker put the block, not by
-    // predicting it. The nearest anchor above is the signature block (or the
-    // preceding section) — an element with real height that stays on the page
-    // this section departs; the nearest below is this section's own. The note
-    // is owed exactly when the two sit on different pages.
+    // The note is decided by observing where that breaker put the block. The
+    // nearest anchor above is the signature block or the preceding section — an
+    // element with real height that stays on the page this section departs.
     //
-    // The decision cannot re-enter its own input: the note prints below the
-    // anchor, so it can never move the anchor, and the room it needs is
-    // reserved inside the anchor's own unbreakable block. Do not reduce this to
-    // a `here()` reading — `here()` sits in the section, travels with it, and
-    // once the section has moved reports the top of the page it moved to.
+    // Do not reduce this to a `here()` reading. `here()` sits in the section and
+    // travels with it, so once the section has moved it reports the top of the
+    // page it moved to and every section measures as fitting. The room the note
+    // needs is reserved inside the anchor's own unbreakable block, so the
+    // decision can never move its own input.
     let above = query(selector(<usaf-memo-flow-anchor>).before(here()))
     let below = query(selector(<usaf-memo-flow-anchor>).after(here()))
     if above.len() > 0 and below.len() > 0 {
@@ -495,9 +491,8 @@
     pagebreak(weak: true)
   }
 
-  // Collected first so each section knows whether another follows it, which is
-  // what decides its reservation. A section with nothing after it reserves
-  // nothing: no note can be owed below it.
+  // Collected first because a section's reservation depends on whether another
+  // follows it: with nothing below, no note can be owed.
   let sections = ()
 
   if attachments != none and attachments.len() > 0 {
@@ -526,9 +521,8 @@
 
   for (index, section) in sections.enumerate() {
     calculate-backmatter-spacing(index == 0)
-    // One blank line of lead-in for the next section, plus one line for its
-    // continuation note. The signature block reserves 3 the same way: the first
-    // section's lead-in is two blank lines rather than one.
+    // The next section's one blank line of lead-in, plus one for its note. The
+    // signature block reserves 3: the first section's lead-in is two lines.
     let reserved-lines = if index + 1 < sections.len() { 2 } else { 0 }
     render-backmatter-section(
       section.content,

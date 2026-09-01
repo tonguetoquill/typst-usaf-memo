@@ -27,8 +27,9 @@ The mechanism is the one the issue describes. Instrumenting the `context` in
 moved, so once it has moved the test measures an empty page against a 50pt list
 and agrees it fits.
 
-The defect is also in this repository's own shipped example. `starkindustries`
-breaks its `cc:` list mid-list across pages 3 and 4 with no note on page 3.
+The defect is also in this repository's own shipped example. In
+`starkindustries`, page 3 ends with a complete `cc:` list and `DISTRIBUTION:`
+opens page 4, so a section leaves a page and that page carries no note.
 
 The vendored copies in `tonguetoquill/airmark-quiver`
 (`quills/usaf_memo/0.2.0` and `0.3.0`) carry the same code and the same defect.
@@ -128,9 +129,13 @@ section exists at all.
 ## Cost
 
 Layout is unchanged on `usaf-template`, `ussf-template` and `daf-template` —
-identical page, x, y and text for every line. `starkindustries` changes by
-exactly the defect: its `cc:` list moves off page 3 as a unit and page 3 gains
-the note.
+identical page, x, y and text for every line.
+
+`starkindustries` changes. Page 3 held `5 Attachments:` and a complete `cc:`
+list, with `DISTRIBUTION:` alone on page 4 and no note anywhere. It now ends
+with `cc: (continued on next page)`, and `cc:` joins `DISTRIBUTION:` on page 4.
+The reservation is what moves `cc:` over: page 3 cannot hold both that list and
+the line `DISTRIBUTION:` would need below it.
 
 The change is otherwise visible only where a memorandum's signature block ends
 within about three lines of the bottom margin and backmatter follows it. There

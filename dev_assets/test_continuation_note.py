@@ -1,16 +1,16 @@
 """A backmatter section that leaves a page says so on the page it leaves.
 
-AFH 33-337 wants the page a list departs to carry a continuation note — "3
+AFH 33-337 wants the departing page to carry a continuation note — "3
 Attachments (listed on next page):" for attachments, the neutral "(continued on
-next page)" for `cc:` and `DISTRIBUTION:`. The invariant is an equivalence, so
-both directions are checked: a section that starts on a later page than the one
-above it carries its note on that earlier page, and a section that does not
-carries no note at all.
+next page)" for `cc:` and `DISTRIBUTION:`. The invariant is an equivalence and
+both directions are checked: a section starting on a later page than the one
+above it carries its note on that earlier page, and one that does not carries no
+note at all.
 
-The sweep matters as much as the assertion. The note is due only across the
-narrow band of body lengths where the section above stays behind and the
-section itself moves; a fixture at one body length sits on one side of that
-band and proves nothing. Each combination is swept across the band instead.
+The note is due only across the narrow band of body lengths where the section
+above stays behind and the section itself moves. A fixture at one body length
+sits on one side of that band and passes either way, so each combination is
+swept across it.
 """
 from pathlib import Path
 import sys
@@ -31,7 +31,6 @@ SIGNATURE_LAST_LINE = "Commander"
 # Body lengths spanning the band where the closing section splits, with room on
 # either side where it does not.
 BODY_LENGTHS = range(18, 36)
-# (attachments, cc, distribution) entry counts.
 COMBINATIONS = [
     (attachments, cc, distribution)
     for attachments in (0, 1, 2, 3, 7)
@@ -118,8 +117,7 @@ def main():
             for body in BODY_LENGTHS:
                 case = f"attachments={attachments} cc={cc} distribution={distribution} body={body}"
                 pages = render(fixture_source(body, attachments, cc, distribution), directory)
-                # The signature block anchors the first section; each section
-                # then anchors the next.
+                # The signature block anchors the first section, each section the next.
                 anchor = page_of(pages, SIGNATURE_LAST_LINE)
                 for label, note in expected_sections(attachments, cc, distribution):
                     section = page_of(pages, label)

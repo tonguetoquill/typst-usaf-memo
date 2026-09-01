@@ -14,9 +14,9 @@
   distribution: none,
   leading-pagebreak: false,
 ) = [#{
-  // Two lead-in lines plus the continuation note's own line. Reserved only
-  // where a backmatter section follows: without one, nothing can run over and
-  // the signature block keeps its current breaking behaviour exactly.
+  // Two lead-in lines plus the continuation note's own line. With no section
+  // below, nothing can run over, so the block reserves nothing and breaks where
+  // it would on its own.
   let has-backmatter = (
     (attachments != none and attachments.len() > 0)
       or (cc != none and cc.len() > 0)
