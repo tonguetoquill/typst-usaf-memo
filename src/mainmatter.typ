@@ -2,31 +2,25 @@
 
 #import "body.typ": *
 
-/// Splits content at the first closing section, into the part `render-body`
-/// numbers and the part that reaches the page untouched.
+/// Splits content at the first closing section: the part `render-body` numbers,
+/// and the part that reaches the page untouched.
 ///
-/// Applied as a show rule, `mainmatter` is handed the whole remainder of the
-/// document — the closing sections along with the body. They cannot go through
-/// `render-body`: it rebuilds what it is given from a buffer of paragraphs,
-/// tables, and block quotes, so the placement a signature block is made of is
-/// dropped and the lines that survive are numbered as body text. Hence the
-/// split, ahead of the rebuild rather than inside it; `backmatter` and
-/// `indorsement` label their output to mark where it falls.
+/// `render-body` rebuilds what it is given from a buffer of paragraphs, tables,
+/// and block quotes. A closing section through it loses the placement it is
+/// made of, and its surviving lines take body paragraph numbers. Applied as a
+/// show rule, `mainmatter` is handed those sections along with the body;
+/// `backmatter` and `indorsement` label their output to mark the boundary.
 ///
-/// Everything from that first marker on stays together, including any prose a
-/// caller wrote between two closing sections: past the signature block, a
-/// memorandum's body is over.
+/// Everything from the first marker on stays together, prose a caller wrote
+/// between two closing sections included.
 ///
-/// Three shapes carry a marker, and the split reads all three: `it` itself,
-/// where a closing section is all there is; a direct child; and the `child` of
-/// a `styled` element, which is what a `set` or `show` rule written after
-/// `#show: mainmatter` wraps the remainder of the document in. Both halves are
-/// put back under those styles, since the rule was written to cover both.
-///
-/// What it does not read is a marker a caller nested inside a container of
-/// their own — a `block`, a `grid` cell. A closing section built in a code
-/// block or a loop is not such a case: joining content extends the sequence on
-/// the left in place, so the marker stays a direct child.
+/// A marker is found on `it` itself, on a direct child, or inside the `styled`
+/// element that a `set` or `show` rule after `#show: mainmatter` wraps the
+/// remainder in; both halves come back under those styles. A marker a caller
+/// nested in a container of their own — a `block`, a `grid` cell — is not
+/// found. A closing section built in a code block or a loop is not nested:
+/// joining content extends the sequence on the left in place, so its marker
+/// stays a direct child.
 ///
 /// - it (content): Content handed to `mainmatter`
 /// -> array: the body content and the closing content

@@ -6,19 +6,14 @@ be split back out before `render-body` rebuilds the body from its paragraph
 buffer, or they lose the placement they are made of and their surviving lines
 are numbered as body paragraphs.
 
-Four fixtures are the same memorandum written four ways: the function form,
-which never hands a closing section to the rebuild, and three show-rule forms
-whose closing sections sit in a different shape each time — as markup children,
-emitted from a code block (what a caller looping over indorsements writes), and
-under `set`/`show` rules declared after `#show: mainmatter`, which wrap the
-remainder in a `styled` element. Rendering all four to the same glyphs at the
+Each fixture is the same memorandum, its closing sections in one of the shapes
+the split has to find them in. Rendering them all to the same glyphs at the
 same positions is the invariant.
 
-A fifth fixture stands alone: a memorandum with no body, where the closing
-section is the whole of what `mainmatter` receives. It has no counterpart to
-match, so it is checked against the signature anchor directly.
+The bodyless memorandum is the exception: its closing section is the whole of
+what `mainmatter` receives, so it has no counterpart to match and is held to
+the signature anchor instead.
 """
-
 from pathlib import Path
 import sys
 import tempfile
