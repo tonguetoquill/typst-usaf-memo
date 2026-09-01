@@ -42,6 +42,7 @@ Thank you for your interest in contributing! This project is a [Typst](https://t
    ```bash
    python3 dev_assets/test_spacing_regression.py    # blank-line spacing is uniform
    python3 dev_assets/test_closing_sections.py      # closing sections survive `#show: mainmatter`
+   python3 dev_assets/test_continuation_note.py     # a section leaving a page says so on that page
    ```
 5. **Visually inspect** the generated PDFs against AFH 33-337 formatting standards.
 

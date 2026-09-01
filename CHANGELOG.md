@@ -4,6 +4,14 @@ All notable changes to `tonguetoquill-usaf-memo` are documented here.
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **A backmatter list running onto the next page says so on the page it leaves.** The note AFH 33-337 wants there — "3 Attachments (listed on next page):", or the neutral "(continued on next page)" for `cc:` and `DISTRIBUTION:` — is decided by reading the page the section landed on rather than by predicting it from inside the section, which reported the top of the page it had already moved to and so never fired. Each closing block now reserves the following section's lead-in and note line as breaking height, reclaimed immediately, so the note is guaranteed room on the departing page; where that reservation does not fit, the signature block travels with its sections instead of stranding them. Layout is unchanged wherever nothing splits.
+
+---
+
 ## [5.0.0] — 2026-09-01
 
 Synchronises the package with the `usaf_memo@0.3.0` quill in
