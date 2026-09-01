@@ -6,12 +6,17 @@ be split back out before `render-body` rebuilds the body from its paragraph
 buffer, or they lose the placement they are made of and their surviving lines
 are numbered as body paragraphs.
 
-The fixtures are the same memorandum written three ways: the function form,
-which never hands a closing section to the rebuild, and two show-rule forms,
-one writing its closing sections as markup children and one emitting them from
-a code block, which is what a caller looping over indorsements does and the
-shape a split reading direct children could miss. Rendering all three to the
-same glyphs at the same positions is the invariant.
+Four fixtures are the same memorandum written four ways: the function form,
+which never hands a closing section to the rebuild, and three show-rule forms
+whose closing sections sit in a different shape each time — as markup children,
+emitted from a code block (what a caller looping over indorsements writes), and
+under `set`/`show` rules declared after `#show: mainmatter`, which wrap the
+remainder in a `styled` element. Rendering all four to the same glyphs at the
+same positions is the invariant.
+
+A fifth fixture stands alone: a memorandum with no body, where the closing
+section is the whole of what `mainmatter` receives. It has no counterpart to
+match, so it is checked against the signature anchor directly.
 """
 
 from pathlib import Path
@@ -34,7 +39,9 @@ FIXTURES = {
     "function": REPO_ROOT / "dev_assets" / "test_closing_sections_function.typ",
     "show rule": REPO_ROOT / "dev_assets" / "test_closing_sections_showrule.typ",
     "show rule, nested": REPO_ROOT / "dev_assets" / "test_closing_sections_nested.typ",
+    "show rule, styled": REPO_ROOT / "dev_assets" / "test_closing_sections_styled.typ",
 }
+BODYLESS = REPO_ROOT / "dev_assets" / "test_closing_sections_only.typ"
 # The signature block anchors 4.5in from the page's left edge (AFH 33-337), not
 # at the 1in left margin the body sits on.
 SIGNATURE_ANCHOR_PT = 4.5 * 72
@@ -94,7 +101,17 @@ def main() -> int:
     if numbered:
         raise AssertionError(f"Closing section lines took body paragraph numbers: {numbered}")
 
-    print(f"Closing-section check passed: {len(lines)} lines identical across all {len(FIXTURES)} forms.")
+    bodyless = {text: x for x, _, text in render(BODYLESS)}
+    signer = "FIRST M. LAST, Maj, USAF"
+    if signer not in bodyless:
+        raise AssertionError(f"Bodyless memorandum did not render its signature block: {signer!r}")
+    if abs(bodyless[signer] - SIGNATURE_ANCHOR_PT) > 1.0:
+        raise AssertionError(
+            f"Bodyless memorandum put {signer!r} at x={bodyless[signer]:.1f}pt, not the "
+            f"{SIGNATURE_ANCHOR_PT:.0f}pt anchor — the closing section was rebuilt as body text."
+        )
+
+    print(f"Closing-section check passed: {len(lines)} lines identical across all {len(FIXTURES)} forms; bodyless memorandum anchored.")
     return 0
 
 

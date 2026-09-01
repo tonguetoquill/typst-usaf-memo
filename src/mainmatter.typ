@@ -17,16 +17,27 @@
 /// caller wrote between two closing sections: past the signature block, a
 /// memorandum's body is over.
 ///
-/// The marker is looked for among the direct children, and among the whole of
-/// `it` where a closing section is all there is. A closing section emitted from
-/// a code block or a loop still surfaces one, since Typst merges the labelled
-/// sequences it joins into the enclosing markup; one a caller nested inside a
-/// container of their own — a `block`, a `grid` cell — does not.
+/// Three shapes carry a marker, and the split reads all three: `it` itself,
+/// where a closing section is all there is; a direct child; and the `child` of
+/// a `styled` element, which is what a `set` or `show` rule written after
+/// `#show: mainmatter` wraps the remainder of the document in. Both halves are
+/// put back under those styles, since the rule was written to cover both.
+///
+/// What it does not read is a marker a caller nested inside a container of
+/// their own — a `block`, a `grid` cell. A closing section built in a code
+/// block or a loop is not such a case: joining content extends the sequence on
+/// the left in place, so the marker stays a direct child.
 ///
 /// - it (content): Content handed to `mainmatter`
 /// -> array: the body content and the closing content
 #let split-closing(it) = {
   if it.at("label", default: none) == <usaf-memo-closing> { return ([], it) }
+  // `styled` is not a name in scope; its two fields identify it.
+  if it.has("child") and it.has("styles") {
+    let (body, closing) = split-closing(it.child)
+    let restyle = part => (it.func())(part, it.styles)
+    return (restyle(body), restyle(closing))
+  }
   if not it.has("children") { return (it, []) }
   let children = it.children
   let boundary = children.position(child => child.at("label", default: none) == <usaf-memo-closing>)

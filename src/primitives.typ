@@ -419,11 +419,20 @@
       }
       continuation-text
     }
-    // No explicit pagebreak: `breakable: false` lets Typst's own breaker move
-    // the section to the next page as a unit when it does not fit. An explicit
-    // pagebreak here would feed this context's layout query back into its own
-    // input, and the two could chase each other until layout gives up — the
-    // label and the break must be decided by one mechanism, not two.
+    // `breakable: false` lets Typst's own breaker move the section to the next
+    // page as a unit; an explicit pagebreak here would feed this context's
+    // layout query back into its own input and the two would chase each other
+    // until layout gave up.
+    //
+    // KNOWN DEFECT: which leaves the note above unreachable in the case it is
+    // for. The section moves with `here()` inside it, so once it has moved the
+    // test runs from the top of its new page, finds a page of free space, and
+    // agrees it fits — and that answer is a fixed point. A section that runs
+    // onto the next page therefore carries no "(listed on next page)" note,
+    // which AFH 33-337 requires. Deciding the note from where the section
+    // landed rather than from a prediction is the shape of the fix, and it
+    // needs an anchor that stays behind: a zero-height marker is carried along
+    // with the section, and making the heading the anchor did not converge.
     block(breakable: false, formatted-content)
   }
 }
