@@ -1,4 +1,4 @@
-#import "@preview/tonguetoquill-usaf-memo:4.0.0": backmatter, frontmatter, indorsement, mainmatter
+#import "@preview/tonguetoquill-usaf-memo:5.0.0": backmatter, frontmatter, indorsement, mainmatter
 
 #show: frontmatter.with(
   letterhead-title: "DEPARTMENT OF THE AIR FORCE",
@@ -63,6 +63,14 @@
 
   The example of this memorandum applies to many official memorandums that Airmen may be tasked to prepare; however, there are additional elements for special uses of the official memorandum. Refer to the Tongue and Quill discussion on the official memorandum for more details, or consult published guidance applicable to your duties.
 
+  Lines that take no number, letter, or bullet — a roster of names, a mailing address, a quoted passage — go in a block quote, which is typeset as written and takes no paragraph number of its own.
+
+  #quote(block: true)[
+    FIRST M. LAST, Maj, USAF\
+    SECOND N. LAST, Capt, USAF\
+    THIRD O. LAST, SSgt, USAF
+  ]
+
   Tables may be embedded directly in the body of the memorandum as shown below. They are rendered with simple black cell borders and inherit the standard 12-point Times New Roman body font, consistent with the plain, formal style of official USAF correspondence.
 
   #table(
@@ -78,6 +86,7 @@
 ]
 
 #backmatter(
+  authority-line: "FOR THE COMMANDER",
   signature-block: (
     "FIRST M. LAST, Rank, USAF",
     "Duty Title",
@@ -98,12 +107,13 @@
   from: "ORG/SYMBOL [Office symbol for 1st Indorsement Official]",
   to: "ORG/SYMBOL [Office symbol for 2d Indorsement official]",
   action: "approve",
+  authority-line: "FOR THE COMMANDER",
   signature-block: (
     "FIRST M LAST, Rank, USAF",
     "Duty Title",
   ),
 )[
-  Approved with the following condition: funding must be identified from within existing squadron budget NLT 1 Oct.
+  Concur, with the following condition: funding must be identified from within existing squadron budget NLT 1 Oct. A coordinating indorsement — any but the last in the chain — reads Concur / Nonconcur; leaving the date unset rules the date slot for the endorser to complete when signing.
 ]
 
 #indorsement(
@@ -114,6 +124,8 @@
     "Duty Title",
   ),
   format: "separate_page",
+  action: "approve",
+  approval-authority: true,
   date: datetime(year: 2001, month: 1, day: 1),
 )[
   Use a new page indorsement when there isn't space remaining on the original memorandum or previous indorsement page. The new-page indorsement is basically the same as the one for the same page, except the top line always cites the indorsement number with the originator's office, date, and subject of the original communication; the second line reflects the functional address symbol of the indorsing office with the date.

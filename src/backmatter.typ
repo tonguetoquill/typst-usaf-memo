@@ -1,16 +1,12 @@
-// backmatter.typ: Backmatter rendering for USAF memorandum
-//
-// This module implements the backmatter (closing section) of a USAF memorandum per
-// AFH 33-337 Chapter 14 "The Closing Section". It handles:
-// - Signature block placement and formatting
-// - Attachments listing
-// - Courtesy copy (cc:) distribution
-// - Distribution lists
+// The memorandum's closing section: AFH 33-337 Chapter 14 "The Closing Section".
 
 #import "primitives.typ": *
 
 #let backmatter(
   signature-block: none,
+  // "FOR THE COMMANDER", or the appropriate title, where the signer acted for
+  // the commander, the command section, or the headquarters. Blank is no line.
+  authority-line: none,
   signature-blank-lines: 4,
   signing-field: none,
   attachments: none,
@@ -18,8 +14,14 @@
   distribution: none,
   leading-pagebreak: false,
 ) = {
-  // Render backmatter sections without paragraph numbering
-  render-signature-block(signature-block, signature-blank-lines: signature-blank-lines, signing-field: signing-field)
+  render-signature-block(
+    signature-block,
+    // Cased by the element, not by the slot: the letter's complimentary close
+    // fills the same slot and must not be uppercased.
+    closing-line: format-authority-line(authority-line),
+    signature-blank-lines: signature-blank-lines,
+    signing-field: signing-field,
+  )
   render-backmatter-sections(
     attachments: attachments,
     cc: cc,

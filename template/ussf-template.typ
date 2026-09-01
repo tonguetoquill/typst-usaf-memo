@@ -1,4 +1,4 @@
-#import "@preview/tonguetoquill-usaf-memo:4.0.0": backmatter, frontmatter, mainmatter
+#import "@preview/tonguetoquill-usaf-memo:5.0.0": backmatter, frontmatter, mainmatter
 
 #show: frontmatter.with(
   letterhead-title: "DEPARTMENT OF THE SPACE FORCE",
