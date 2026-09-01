@@ -2,34 +2,42 @@
 
 #import "body.typ": *
 
-/// Splits content at the first closing section, into the part `render-body`
-/// numbers and the part that reaches the page untouched.
+/// Splits content at the first closing section: the part `render-body` numbers,
+/// and the part that reaches the page untouched.
 ///
-/// Applied as a show rule, `mainmatter` is handed the whole remainder of the
-/// document — the closing sections along with the body. They cannot go through
-/// `render-body`: it rebuilds what it is given from a buffer of paragraphs,
-/// tables, and block quotes, so the placement a signature block is made of is
-/// dropped and the lines that survive are numbered as body text. Hence the
-/// split, ahead of the rebuild rather than inside it; `backmatter` and
-/// `indorsement` label their output to mark where it falls.
+/// `render-body` rebuilds what it is given from a buffer of paragraphs, tables,
+/// and block quotes. A closing section through it loses the placement it is
+/// made of, and its surviving lines take body paragraph numbers. Applied as a
+/// show rule, `mainmatter` is handed those sections along with the body;
+/// `backmatter` and `indorsement` label their output to mark the boundary.
 ///
-/// Everything from that first marker on stays together, including any prose a
-/// caller wrote between two closing sections: past the signature block, a
-/// memorandum's body is over.
+/// Everything from the first marker on stays together, prose a caller wrote
+/// between two closing sections included.
+///
+/// A marker is found on `it` itself, on a direct child, or inside the `styled`
+/// element that a `set` or `show` rule after `#show: mainmatter` wraps the
+/// remainder in; both halves come back under those styles. A marker a caller
+/// nested in a container of their own — a `block`, a `grid` cell — is not
+/// found. A closing section built in a code block or a loop is not nested:
+/// joining content extends the sequence on the left in place, so its marker
+/// stays a direct child.
 ///
 /// - it (content): Content handed to `mainmatter`
 /// -> array: the body content and the closing content
 #let split-closing(it) = {
+  if it.at("label", default: none) == <usaf-memo-closing> { return ([], it) }
+  // `styled` is not a name in scope; its two fields identify it.
+  if it.has("child") and it.has("styles") {
+    let (body, closing) = split-closing(it.child)
+    let restyle = part => (it.func())(part, it.styles)
+    return (restyle(body), restyle(closing))
+  }
   if not it.has("children") { return (it, []) }
   let children = it.children
   let boundary = children.position(child => child.at("label", default: none) == <usaf-memo-closing>)
   if boundary == none { return (it, []) }
-  // `().join()` and a one-element join both need coercing back to content.
-  let rejoin = parts => {
-    let joined = parts.join()
-    if joined == none { [] } else { joined }
-  }
-  (rejoin(children.slice(0, boundary)), rejoin(children.slice(boundary)))
+  // `sum` over `join`: an empty half is `none` from a join and `[]` from this.
+  (children.slice(0, boundary).sum(default: []), children.slice(boundary).sum(default: []))
 }
 
 /// Show rule for the memorandum body, applying AFH 33-337 paragraph numbering

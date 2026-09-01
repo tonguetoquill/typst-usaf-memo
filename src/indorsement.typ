@@ -170,6 +170,5 @@
     signature-blank-lines: signature-blank-lines,
     signing-field: signing-field,
   )
-  // Labelled so `mainmatter`, applied as a show rule over the rest of the
-  // document, can tell the closing section from the body (see `split-closing`).
+  // Labelled so `mainmatter` can split the closing off the body; `split-closing`.
 }<usaf-memo-closing>]
