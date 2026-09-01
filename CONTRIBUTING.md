@@ -38,7 +38,12 @@ Thank you for your interest in contributing! This project is a [Typst](https://t
    typst compile --font-path . --root . template/usaf-template.typ pdfs/usaf-template.pdf
    ```
    Or run `./build.sh` to compile all three.
-4. **Visually inspect** the generated PDFs against AFH 33-337 formatting standards.
+4. **Run the regression checks** in `dev_assets/` (`pip install -r dev_assets/requirements.txt` first):
+   ```bash
+   python3 dev_assets/test_spacing_regression.py    # blank-line spacing is uniform
+   python3 dev_assets/test_closing_sections.py      # closing sections survive `#show: mainmatter`
+   ```
+5. **Visually inspect** the generated PDFs against AFH 33-337 formatting standards.
 
 ## Submitting a Pull Request
 

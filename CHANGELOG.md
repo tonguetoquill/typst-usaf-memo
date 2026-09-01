@@ -39,6 +39,7 @@ spellings were translated on the way in.
 
 ### Fixed
 
+- **`#show: mainmatter` no longer consumes the closing sections.** As a show rule `mainmatter` is handed the whole remainder of the document, and `render-body` rebuilds what it is given from a buffer of paragraphs, tables, and block quotes — so a `backmatter` or `indorsement` written after it lost the placement it is made of (the 4.5 in signature anchor, the attachment and cc labels, the indorsement header) and had its surviving lines numbered as body paragraphs. `backmatter` and `indorsement` now label their output, and `mainmatter` splits the content there and emits the closing sections untouched. The function form, `#mainmatter[…]`, renders exactly as before.
 - **The banner's dissemination suffix no longer splits into `CUI// NF`** when `dissemination` arrives as content.
 
 ---

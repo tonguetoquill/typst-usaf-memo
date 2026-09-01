@@ -283,7 +283,7 @@ Configures the memorandum header and establishes document-wide settings. Applied
 
 #### `mainmatter`
 
-Processes the memorandum body content with automatic paragraph numbering. Called with the body as content.
+Processes the memorandum body content with automatic paragraph numbering. Called with the body as content, or applied as a show rule.
 
 ```typst
 #mainmatter[
@@ -291,7 +291,13 @@ Processes the memorandum body content with automatic paragraph numbering. Called
 ]
 ```
 
-As a show rule (`#show: mainmatter`) it applies to the entire remainder of the document, so anything after it — `backmatter`, `indorsement` — is numbered as body text too. Use it that way only when the body runs to the end of the file.
+```typst
+#show: mainmatter
+
+Your memorandum content goes here.
+```
+
+As a show rule it takes the entire remainder of the document, `backmatter` and `indorsement` included; those are split back out and rendered as the closing sections they are, not numbered as body text.
 
 **Responsibilities:**
 - Applies AFH 33-337 hierarchical paragraph numbering (1., a., (1), (a))
