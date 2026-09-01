@@ -25,6 +25,8 @@ Maintained by [TTQ](https://www.tonguetoquill.com).
 - **Classification markings** with color-coded header/footer banners for UNCLASSIFIED, CUI, CONFIDENTIAL, SECRET, and TOP SECRET (other banner text uses the default color), optional dissemination controls, and the DoDM 5200.48 CUI designation indicator block
 - **Custom footer taglines** for service-specific branding (e.g., "semper supra" for Space Force)
 - **Inline tables** with clean, formal formatting consistent with USAF correspondence standards
+- **Block quotes** for the lines that take no number, letter, or bullet — a roster of names, an address, a quoted passage
+- **Authority lines** ("FOR THE COMMANDER") above the signature block of the memorandum and of any indorsement
 
 ## Quick Start
 
@@ -52,7 +54,7 @@ You can either clone the repository to pull all fonts or download just the files
 
 2. Initialize template from Typst Universe:
 ```bash
-typst init @preview/tonguetoquill-usaf-memo:4.0.0 my-memo
+typst init @preview/tonguetoquill-usaf-memo:5.0.0 my-memo
 cd my-memo
 ```
 
@@ -90,7 +92,7 @@ cd tonguetoquill-usaf-memo
 Import the core functions for creating memorandums:
 
 ```typst
-#import "@preview/tonguetoquill-usaf-memo:4.0.0": frontmatter, mainmatter, backmatter, indorsement
+#import "@preview/tonguetoquill-usaf-memo:5.0.0": frontmatter, mainmatter, backmatter, indorsement
 ```
 
 **Minimal Example:**
@@ -101,14 +103,14 @@ Import the core functions for creating memorandums:
   memo-from: ("YOUR/SYMBOL",),
 )
 
-#show: mainmatter
+#mainmatter[
+  Your memorandum content goes here.
 
-Your memorandum content goes here.
+  - Use plus signs for numbered subparagraphs.
+    - Indent with spaces for deeper nesting.
 
-- Use plus signs for numbered subparagraphs.
-  - Indent with spaces for deeper nesting.
-
-Continue with regular paragraphs.
+  Continue with regular paragraphs.
+]
 
 #backmatter(
   signature-block: ("NAME, Rank, USAF", "Title"),
@@ -171,6 +173,19 @@ Tables can be placed directly in the memo body using standard Typst `#table(...)
 ```
 
 Tables do not count toward paragraph numbering and are rendered between numbered paragraphs as needed.
+
+### Block quotes
+
+AFH 33-337 numbers paragraphs and letters subparagraphs, and a body sometimes has to hold lines that are neither: a roster of names, a mailing address, a quoted passage. A block quote is where you say so — its content reaches the page as written, taking no number, letter, or bullet.
+
+```typst
+#quote(block: true)[
+  FIRST M. LAST, Maj, USAF\
+  SECOND N. LAST, Capt, USAF
+]
+```
+
+A quote inside a subparagraph hangs under that subparagraph's text; one at top level sits flush at the left margin. Typst's own block-quote framing (padding, attribution) is not applied.
 
 ### Classification markings
 
@@ -254,7 +269,7 @@ Configures the memorandum header and establishes document-wide settings. Applied
 )
 ```
 
-**References placement.** A single reference is rendered inline in parentheses after the SUBJECT text; two or more are rendered as a lettered `References:` block per AFH 33-337.
+**References placement.** A single reference is rendered inline in parentheses after the SUBJECT text; two or more are rendered as a lettered `References:` block per AFH 33-337. Blank entries are dropped before that decision, so a stub left for the user to fill in neither renders on its own nor passes as the lone reference.
 
 **Responsibilities:**
 - Sets page layout with 1-inch margins
@@ -268,17 +283,28 @@ Configures the memorandum header and establishes document-wide settings. Applied
 
 #### `mainmatter`
 
-Processes the memorandum body content with automatic paragraph numbering. Applied as a show rule with no parameters.
+Processes the memorandum body content with automatic paragraph numbering. Called with the body as content, or applied as a show rule.
+
+```typst
+#mainmatter[
+  Your memorandum content goes here.
+]
+```
 
 ```typst
 #show: mainmatter
+
+Your memorandum content goes here.
 ```
+
+As a show rule it takes the entire remainder of the document, `backmatter` and `indorsement` included; those are split back out and rendered as the closing sections they are, not numbered as body text.
 
 **Responsibilities:**
 - Applies AFH 33-337 hierarchical paragraph numbering (1., a., (1), (a))
 - Handles proper indentation and spacing
 - Auto-detects single vs. multiple paragraphs
 - Supports inline tables with formal black-border formatting
+- Places block quotes verbatim, without a paragraph number
 - Inherits configuration from frontmatter
 
 #### `backmatter(...)`
@@ -289,6 +315,7 @@ Renders the closing section including signature block and optional attachments/c
 ```typst
 #backmatter(
   signature-block: ("[NAME, Rank, USAF]", "[Title]"),      // Signature lines (required)
+  authority-line: none,                                    // e.g. "FOR THE COMMANDER"; rendered in uppercase above the signature block
   signature-blank-lines: 4,                                // Blank lines above signature
   signing-field: none,                                     // Optional content overlaid in the space above the signature block
   attachments: ("Attachment 1", "Attachment 2"),            // Optional attachments (a single attachment is not numbered)
@@ -298,7 +325,10 @@ Renders the closing section including signature block and optional attachments/c
 )
 ```
 
+**The `authority-line` parameter.** AFH 33-337 places the authority line on the second line below the text, at the signature block's own anchor, with the signature then five lines below the line rather than below the body. Leave it unset — the usual case — when the commander signs, when the memorandum gives the opinion of a unit or office, or when it goes outside the DoD.
+
 **Responsibilities:**
+- Renders the authority line when one is set
 - Renders signature block with orphan prevention, shifting it left when a long name would otherwise overrun the right margin
 - Renders attachments section with smart page breaks
 - Renders cc section
@@ -313,28 +343,34 @@ Creates an indorsement for forwarding or commenting on a memorandum. Called as a
   from: "ORG/SYMBOL",                                       // Sending organization
   to: "RECIPIENT/SYMBOL",                                   // Recipient organization
   signature-block: ("[NAME, Rank, USAF]", "[Title]"),      // Signature lines
+  authority-line: none,                                    // e.g. "FOR THE COMMANDER"; as on backmatter
   signature-blank-lines: 4,                                // Blank lines above signature
   signing-field: none,                                     // Optional content overlaid in the space above the signature block
-  date: none,                                              // Indorsement date; blank renders a fill-in rule (also accepts ISO string "YYYY-MM-DD")
+  date: none,                                              // Indorsement date; blank rules the date slot (also accepts ISO string "YYYY-MM-DD")
+  date-field: none,                                        // Optional fill-in widget anchored in that slot instead of the rule
   format: "standard",                                      // "standard", "informal", or "separate_page"
   action: none,                                            // none (default), "undecided", "approve", or "disapprove"
+  approval-authority: false,                               // true for the last indorsement in the chain
 )[
   Your indorsement content here.
 ]
 ```
 
-**The `date` parameter.** Per AFH 33-337 Ch. 14 an indorsement is dated when the endorser signs it, which is usually unknown at compile time. Leaving `date` unset therefore renders a horizontal fill-in rule to be completed by hand rather than stamping today's date.
+**The `date` parameter.** Per AFH 33-337 Ch. 14 an indorsement is dated when the endorser signs it, which is usually unknown at compile time. Leaving `date` unset therefore rules the date slot to be completed by hand rather than stamping today's date. Pass `date-field` to anchor an interactive widget — a PDF form field, say — in that slot instead.
 
 **Empty bodies.** An indorsement with an action line but no body text (`[]`) collapses the body's surrounding spacing, so the signature block still lands on AFH 33-337's "fifth line below the last line of text" anchor.
 
 **The `action` parameter:**
 - `none` (default): No action line displayed
-- `"undecided"`: Displays "Approve / Disapprove" with neither option boxed or struck through
-- `"approve"`: Displays "Approve / Disapprove" with Approve boxed and Disapprove struck through
-- `"disapprove"`: Displays "Approve / Disapprove" with Disapprove boxed and Approve struck through
+- `"undecided"`: Displays the option pair with neither option marked
+- `"approve"`: Underlines the affirmative option and strikes the other
+- `"disapprove"`: Underlines the negative option and strikes the other
+
+**The `approval-authority` parameter.** Which pair prints follows from the indorsement's place in the coordination chain, not from the endorser's choice. The last indorsement is the approval authority and reads Approve / Disapprove (`approval-authority: true`); every coordinating official before it reads Concur / Nonconcur (the default). Only the caller can see whether further indorsements follow, so the caller sets it.
 
 **Responsibilities:**
 - Auto-numbers indorsements (1st Ind, 2d Ind, 3d Ind, etc.)
+- Renders the authority line when one is set
 - Renders indorsement header with from/to
 - Upgrades a `"standard"` indorsement to the fuller separate-page header when it no longer fits on the action document's page and is pushed to a new page
 - Processes indorsement body content
@@ -375,7 +411,7 @@ Contributions are welcome! Please explore `src/` for core functions and `templat
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
 External assets used in this project:
 

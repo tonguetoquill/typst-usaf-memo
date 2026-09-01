@@ -1,14 +1,8 @@
-// indorsement.typ: Indorsement rendering for USAF memorandum
+// An indorsement forwards a memorandum onward with the endorser's own
+// commentary and signature, per AFH 33-337 Chapter 14.
 //
-// This module implements indorsements (endorsements) per AFH 33-337 Chapter 14.
-// Indorsements are used to forward memorandums with additional commentary.
-// They follow the format: "1st Ind", "2d Ind", "3d Ind", etc.
-// Each indorsement includes its own body text and signature block.
-//
-// Note: When using #show: indorsement.with(...), the indorsement wraps the
-// entire remainder of the document. This works for a single indorsement at
-// the end of a file. For multiple indorsements, use the function call syntax:
-// #indorsement(...)[Body text...]
+// Call it as a function, `#indorsement(..)[Body]`. As a show rule it wraps the
+// whole remainder of the document, which leaves room for exactly one.
 
 #import "primitives.typ": *
 #import "body.typ": *
@@ -17,18 +11,30 @@
   from: none,
   to: none,
   signature-block: none,
+  // An indorsement has a closing section of its own, so it takes an authority
+  // line on the same terms as the memorandum.
+  authority-line: none,
   signature-blank-lines: 4,
   signing-field: none,
   date: none,
+  // Fill-in widget for an omitted `date`, anchored in the date slot of the
+  // indorsement header (see `date-placeholder-slot`). Without one the slot is
+  // ruled for a handwritten date.
+  date-field: none,
   // Format of indorsement: "standard" (same page), "informal" (no header), or "separate_page" (starts on new page)
   format: "standard",
-  // Approval action: none (default, no action line displayed), "undecided", "approve", or "disapprove".
-  // When set to "undecided", the action line is displayed with neither option circled.
-  // When set to "approve" or "disapprove", the action line is displayed with the selected option circled.
+  // Decision action. `none` (default) displays no action line at all.
+  // "approve" or "disapprove" underlines the selected option and strikes the
+  // other; "undecided" displays the pair with neither marked.
   action: none,
+  // Role this indorsement plays in the coordination chain, which selects the
+  // wording of the action line: the approval authority (the last indorsement
+  // in the chain) Approves / Disapproves, every coordinating official before
+  // it Concurs / Nonconcurs. The caller owns this because only it can see
+  // whether further indorsements follow.
+  approval-authority: false,
   content,
-) = {
-  // Validate format parameter
+) = [#{
   assert(
     format in ("standard", "informal", "separate_page"),
     message: "format must be \"standard\", \"informal\", or \"separate_page\"",
@@ -44,15 +50,13 @@
   let ind-from = first-or-value(from)
   let ind-for = to
 
-  // An empty body (e.g. an indorsement with only an action selected and no
-  // text) collapses to zero rendered layout via render-body's filter. To
-  // make the "empty body takes no layout space" guarantee end-to-end, also
-  // suppress the spacing the surrounding code reserves *for* the body:
-  // the header→body gap (when no action is present) and the action→body
-  // trailing gap. Without this, an empty body still leaves an extra
-  // blank-line stride above the signature, pushing it off the AFH 33-337
-  // "fifth line below the last line of text" anchor.
-  // Callers pass `[]` for an absent body; comparing against `[]` detects it.
+  // An empty body renders as zero layout through render-body's filter, so the
+  // spacing reserved *for* the body is suppressed too: the header→body gap
+  // (when no action is present) and the action→body trailing gap. Left in,
+  // they add a blank-line stride above the signature and push it off AFH
+  // 33-337's "fifth line below the last line of text" anchor.
+  //
+  // A caller with no body passes `[]`.
   let body-empty = content == []
 
   let effective-action = if action == none or type(action) != str or action.trim() == "" {
@@ -62,7 +66,8 @@
   }
 
   if format != "informal" {
-    // Step the counter BEFORE the context block to avoid read-then-update loop
+    // Stepped outside the `context` below, which reads it: a step inside would
+    // read and update the same counter.
     counters.indorsement.step()
 
     context {
@@ -72,19 +77,24 @@
       let original-date = config.original-date
       let original-from = config.original-from
 
-      // Read the counter value (already stepped above)
       let indorsement-number = counters.indorsement.get().at(0, default: 1)
       let indorsement-label = format-indorsement-number(indorsement-number)
 
-      let ind-date = align(right)[#if actual-date != none { display-date(actual-date, memo-style: memo-style) } else { date-placeholder-line() }]
+      let ind-date = align(right)[#if actual-date != none { display-date(actual-date, memo-style: memo-style) } else { date-placeholder-slot(field: date-field) }]
 
       // Separate-page header body: restates the original memo's identity (FROM,
       // date, subject) on its own line, since the indorsement no longer shares a
       // page with the action document. Rendered as a non-breakable, sticky unit
       // so it travels to the next page *with* the content it heads rather than
       // being stranded at the bottom of a page.
+      // `original-from` / `original-subject` are content fields, and a content
+      // field lowers to a markup block whose newlines read as spaces in the
+      // enclosing paragraph — mid-sentence that lands a stray space before the
+      // following comma. `box` gives each its own paragraph context, where
+      // Typst trims the edge spaces (the same treatment the inline reference
+      // gets in `render-subject-section`), and keeps the phrase unbroken.
       let separate-page-body = block(breakable: false, sticky: true)[
-        #[#indorsement-label to #original-from, #display-date(original-date, memo-style: memo-style), #original-subject]
+        #[#indorsement-label to #box(original-from), #display-date(original-date, memo-style: memo-style), #box(original-subject)]
         #blank-line()
         #grid(columns: (auto, 1fr), ind-from, ind-date)
         #blank-line()
@@ -97,7 +107,7 @@
       // across a page boundary and never detach from the body/signature below.
       let standard-header = block(breakable: false, sticky: true)[
         #blank-line()
-        #grid(columns: (auto, 1fr), [#indorsement-label, #ind-from], ind-date)
+        #grid(columns: (auto, 1fr), [#indorsement-label, #box(ind-from)], ind-date)
         #blank-line()
         #grid(columns: (auto, auto, 1fr), "MEMORANDUM FOR", "  ", ind-for)
       ]
@@ -120,13 +130,7 @@
         // resolved position is at the top of its page, it was pushed; emit the
         // separate-page body (no extra pagebreak — we are already at page top).
         // Otherwise the header flows in place with the standard form.
-        let stride = {
-          let s = LINE_STRIDE.get()
-          if s == none {
-            let one-line = measure(par(spacing: 0pt)[x]).height
-            measure(par(spacing: 0pt)[x#linebreak()x]).height - one-line
-          } else { s }
-        }
+        let stride = line-stride()
         // here().position().y is the resolved flow position of this header. On a
         // continuation page the first content sits at the top margin; allow one
         // line stride of tolerance for baseline/rounding.
@@ -145,9 +149,12 @@
     }
   }
 
-  // Show action line only when an action decision is set (not `none`)
   if effective-action != none {
-    render-action-line(effective-action, trailing-blank-line: not body-empty)
+    render-action-line(
+      effective-action,
+      approval-authority: approval-authority,
+      trailing-blank-line: not body-empty,
+    )
   }
 
   if not body-empty {
@@ -157,5 +164,12 @@
     }
   }
 
-  render-signature-block(signature-block, signature-blank-lines: signature-blank-lines, signing-field: signing-field)
-}
+  render-signature-block(
+    signature-block,
+    closing-line: format-authority-line(authority-line),
+    signature-blank-lines: signature-blank-lines,
+    signing-field: signing-field,
+  )
+  // Labelled so `mainmatter`, applied as a show rule over the rest of the
+  // document, can tell the closing section from the body (see `split-closing`).
+}<usaf-memo-closing>]

@@ -4,6 +4,46 @@ All notable changes to `tonguetoquill-usaf-memo` are documented here.
 
 ---
 
+## [5.0.0] — 2026-09-01
+
+Synchronises the package with the `usaf_memo@0.3.0` quill in
+[`tonguetoquill/airmark-quiver`](https://github.com/tonguetoquill/airmark-quiver),
+which has carried the package forward since the 4.0.0 sync. As before, public
+parameters keep this project's `kebab-case` convention; the fork's `snake_case`
+spellings were translated on the way in.
+
+### Added
+
+- **`authority-line` on `backmatter` and `indorsement`.** The line telling the reader the signer acted for the commander — "FOR THE COMMANDER" — rendered in uppercase at the signature block's own anchor, on the second line below the text, with the signature then five lines below the line rather than below the body. Blank is no line, which is the usual case: AFH 33-337 has one only where the commander's representative signs. An indorsement has a closing section of its own and takes it on the same terms.
+- **Block quotes as the body's unlabeled block.** A `quote(block: true)` in the body reaches the page as written, taking no number, letter, or bullet — for the lines a memorandum has to carry that AFH 33-337 numbering has no claim on: a roster of names, an address, a quoted passage. A quote inside a subparagraph hangs under that subparagraph's text; one at top level sits flush at the margin.
+- **`approval-authority` on `indorsement`.** Selects the action line's wording by the indorsement's place in the coordination chain: the approval authority (the last indorsement) reads Approve / Disapprove, every coordinating official before it reads Concur / Nonconcur. The caller owns it because only the caller can see whether further indorsements follow.
+- **`date-field` on `indorsement`.** An interactive fill-in widget — a PDF form field, say — anchored in the date slot an omitted `date` reserves. Without one the slot keeps its ruled baseline for a handwritten date.
+- **`date-pattern` is exported.** The date pattern a memo style prints, so a caller that pre-formats a date matches the package instead of restating it. `display-date` accepts the pre-formatted content in turn.
+- **Letterhead captions shrink to fit.** A caption too long for the space between the seal and the page's right edge is scaled down to it rather than running underneath the seal. A caption that already fits keeps its set size.
+
+### Changed
+
+- **Breaking: `action` marks its choice with an underline and a strike**, rather than boxing the selected option. An underline keeps the option on the line's own baseline and reads as a mark made on the page, where a ruled rectangle reads as one more fillable field in a PDF that carries real ones.
+- **Breaking: an indorsement's `action` reads Concur / Nonconcur by default.** `approval-authority: true` restores Approve / Disapprove; see above.
+- **Breaking: `ensure-string` is replaced by `join-lines`**, which stacks its lines as *content* rather than joining them into a `str`. A field may arrive as either shape, and `str(..)` on content is an error.
+- **Breaking: `date-placeholder-line` is replaced by `date-placeholder-slot`**, which reserves the same slot and takes an optional fill-in widget to anchor in it.
+- **Blank `references` entries are dropped** before the inline-versus-block decision, so a stub entry left for the user to fill in neither renders on its own nor passes as the lone reference.
+- **The signature block's four blank lines are carried inside its unbreakable block.** The space above the block is identical, but a gap left outside it could be consumed at the foot of one page while the block itself started at the top margin of the next. `signing-field` is anchored to the bottom of that gap and keeps its own height, so it always ends where the printed name begins.
+- **A last body element sticks to the signature block only within a relocation budget** — a third of the text block — rather than on an estimated line count. A sticky block relocates whole instead of splitting, so an unbounded rule turned an ordinary mid-paragraph break into a wholesale jump.
+- **A heading runs into the element after it only where the two belong together**, and one with nothing after it is emitted on its own line instead of being dropped.
+- **`create-auto-grid` accepts content cells**, not `str` alone.
+
+### Removed
+
+- **`process-indorsements`.** Indorsements are rendered by calling `indorsement` in document order; nothing called it.
+
+### Fixed
+
+- **`#show: mainmatter` no longer consumes the closing sections.** As a show rule `mainmatter` is handed the whole remainder of the document, and `render-body` rebuilds what it is given from a buffer of paragraphs, tables, and block quotes — so a `backmatter` or `indorsement` written after it lost the placement it is made of (the 4.5 in signature anchor, the attachment and cc labels, the indorsement header) and had its surviving lines numbered as body paragraphs. `backmatter` and `indorsement` now label their output, and `mainmatter` splits the content there and emits the closing sections untouched. The function form, `#mainmatter[…]`, renders exactly as before.
+- **The banner's dissemination suffix no longer splits into `CUI// NF`** when `dissemination` arrives as content.
+
+---
+
 ## [4.0.0] — 2026-07-30
 
 Synchronises the package with the downstream fork maintained in

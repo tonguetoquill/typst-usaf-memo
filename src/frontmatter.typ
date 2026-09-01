@@ -1,11 +1,5 @@
-// frontmatter.typ: Frontmatter show rule for USAF memorandum
-//
-// This module implements the frontmatter (heading section) of a USAF memorandum
-// per AFH 33-337 Chapter 14 "The Heading Section". It handles:
-// - Page setup with proper margins
-// - Letterhead rendering
-// - Date, MEMORANDUM FOR, FROM, SUBJECT, and References placement
-// - Classification markings in headers/footers
+// The memorandum's heading section, and the page setup the rest of the
+// document inherits: AFH 33-337 Chapter 14 "The Heading Section".
 
 #import "primitives.typ": *
 
@@ -44,23 +38,24 @@
 
   let actual-date = if date == none { datetime.today() } else { date }
 
+  // The banner is `LEVEL` or `LEVEL//SUFFIX`. `classification-level` is an enum
+  // (a `str`), but `dissemination` may arrive as content, which `str + str`
+  // cannot absorb — so the marking is assembled as content instead.
   let classification-marking = if classification-level == none or type(classification-level) != str {
     none
   } else {
     let base = classification-level.trim()
     if base == "" {
       none
+    } else if falsey(dissemination) {
+      [#base]
     } else {
-      let disp = if dissemination == none or type(dissemination) != str {
-        ""
-      } else {
-        dissemination.trim()
-      }
-      if disp != "" {
-        base + "//" + upper(disp)
-      } else {
-        base
-      }
+      // `//` is a line comment in Typst markup, so the separator is
+      // interpolated as a string rather than written literally. The suffix is
+      // boxed so the markup block's edge newlines do not read as a space and
+      // split the banner into `CUI// NF`.
+      let separator = "//"
+      [#base#separator#box(upper(dissemination))]
     }
   }
   let classification-color = get-classification-level-color(classification-level)
@@ -73,30 +68,30 @@
     and type(classification-level) == str
     and classification-level.trim().starts-with("CUI")
   ) {
+    // An indicator may arrive as content or as a `str`; `falsey` is the
+    // presence test that reads both shapes.
     let lines = ()
-    if cui-controlled-by != none and type(cui-controlled-by) == str and cui-controlled-by.trim() != "" {
-      lines.push([Controlled By: #cui-controlled-by.trim()])
+    if not falsey(cui-controlled-by) {
+      lines.push([Controlled By: #cui-controlled-by])
     }
-    if cui-category != none and type(cui-category) == str and cui-category.trim() != "" {
-      lines.push([CUI Category: #cui-category.trim()])
+    if not falsey(cui-category) {
+      lines.push([CUI Category: #cui-category])
     }
-    let ldc = if cui-limited-dissemination != none and type(cui-limited-dissemination) == str { cui-limited-dissemination.trim() } else { "" }
-    if ldc != "" {
-      lines.push([LDC: #upper(ldc)])
+    if not falsey(cui-limited-dissemination) {
+      lines.push([LDC: #upper(cui-limited-dissemination)])
     }
-    if cui-poc != none and type(cui-poc) == str and cui-poc.trim() != "" {
-      lines.push([POC: #cui-poc.trim()])
+    if not falsey(cui-poc) {
+      lines.push([POC: #cui-poc])
     }
     if lines.len() > 0 { lines.join(linebreak()) } else { none }
   } else {
     none
   }
 
-  // Document-wide typography settings (inlined from configure())
   set par(leading: spacing.line, spacing: spacing.line, justify: false)
   set block(above: spacing.line, below: 0em, spacing: 0em)
   set text(font: body-font, size: font-size, fallback: true)
-  show raw: set text(font: DEFAULT_MONO_FONTS)  // Static monospace face for inline code and code blocks
+  show raw: set text(font: DEFAULT_MONO_FONTS)
 
   set page(
     paper: "us-letter",
@@ -202,11 +197,11 @@
   // Since we have a 1-inch top margin, we need (1.75in - margin) vertical space
   v(1.75in - spacing.margin)
 
-  // Measure and cache body line stride once for body line-count heuristics.
+  // Measure one line's stride once, under the typography just set, for the
+  // blank-line spacing the sections below and the body are laid out on.
   context {
     let one-line = measure(par(spacing: 0pt)[x]).height
-    let line-stride = measure(par(spacing: 0pt)[x#linebreak()x]).height - one-line
-    LINE_STRIDE.update(line-stride)
+    LINE_STRIDE.update(measure(par(spacing: 0pt)[x#linebreak()x]).height - one-line)
   }
 
   [#metadata((
@@ -221,13 +216,12 @@
   render-date-section(actual-date, memo-style: memo-style)
   render-for-section(memo-for, memo-for-cols)
   if not falsey(memo-from) { render-from-section(memo-from) }
-  let single-ref = if type(references) == array and references.len() == 1 {
-    references.at(0)
-  } else {
-    none
-  }
+  // Blank entries are dropped first so a stub `- ` left under `references:`
+  // cannot pass as the lone reference and render an empty `()` after the subject.
+  let refs = compact-references(references)
+  let single-ref = if refs.len() == 1 { refs.at(0) } else { none }
   render-subject-section(subject, inline-reference: single-ref)
-  render-references-section(references)
+  render-references-section(refs)
 
   // AFH 33-337: "Begin text on second line below subject/references".
   // Emitted here (not inside body.typ) so the v() lands at the same lexical

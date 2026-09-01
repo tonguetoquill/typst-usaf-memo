@@ -1,15 +1,8 @@
-// body.typ: Paragraph body rendering for USAF memorandum sections
-//
-// This module implements the visual rendering of AFH 33-337 compliant
-// paragraph bodies with proper numbering, nesting, and formatting.
+// Paragraph numbering, nesting, and indentation for the memorandum body.
 
 #import "config.typ": *
 #import "utils.typ": *
 #import "primitives.typ": render-memo-table
-
-// =============================================================================
-// PARAGRAPH NUMBERING UTILITIES
-// =============================================================================
 
 /// Gets the numbering format for a specific paragraph level.
 ///
@@ -52,12 +45,30 @@
   daf-paragraph.nested-first-level-indent + (level - 1) * daf-paragraph.nested-step
 }
 
-/// Resets counter entries from `start` upward to 1 in the level-counts dictionary.
 #let reset-levels-from(level-counts, start, max-levels) = {
   for child in range(start, max-levels) {
     level-counts.insert(str(child), 1)
   }
   level-counts
+}
+
+/// The horizontal offset at which a paragraph's *text* sits: its indent plus
+/// the width of the number label that precedes it.
+///
+/// This is where a later block of the same paragraph — a continuation, a block
+/// quote — lines up, so the two callers share one measurement rather than each
+/// spelling it. A top-level paragraph carries no indent and its label is the
+/// left margin itself, so the offset is zero.
+///
+/// - level (int): Nesting level (0-based)
+/// - level-counts (dictionary): Current counter values per level
+/// - indent-fn (function): `(level, level-counts) -> length`
+/// -> length
+#let paragraph-text-offset(level, level-counts, indent-fn) = {
+  if level <= 0 { return 0pt }
+  let current-value = level-counts.at(str(level), default: 1)
+  let number-text = numbering(get-paragraph-numbering-format(level), current-value)
+  indent-fn(level, level-counts) + measure([#number-text#"  "]).width
 }
 
 /// Formats a paragraph (or continuation) with a given indent strategy.
@@ -69,27 +80,29 @@
 /// - continuation (bool): If true, adds number-label width to alignment
 /// -> content
 #let format-par(body, level, level-counts, indent-fn, continuation: false) = {
-  let indent-width = indent-fn(level, level-counts)
   if continuation {
-    let current-value = level-counts.at(str(level), default: 1)
-    let number-text = numbering(get-paragraph-numbering-format(level), current-value)
-    [#h(indent-width + measure([#number-text#"  "]).width)#body]
+    // Offset the first line only, which is how the numbered paragraph this
+    // block continues is set: its own wrapped lines return to the left margin
+    // too, so the two read as one paragraph.
+    [#h(paragraph-text-offset(level, level-counts, indent-fn))#body]
   } else {
+    let indent-width = indent-fn(level, level-counts)
     let current-value = level-counts.at(str(level), default: 1)
     let number-text = numbering(get-paragraph-numbering-format(level), current-value)
     [#h(indent-width)#number-text#"  "#body]
   }
 }
 
-// =============================================================================
-// PARAGRAPH BODY RENDERING
-// =============================================================================
-// AFH 33-337 "The Text of the Official Memorandum" §1-12 specifies:
-// - Single-space text, double-space between paragraphs
-// - Number and letter each paragraph and subparagraph
-// - "A single paragraph is not numbered" (§2)
-// - First paragraph flush left, never indented
-// - Indent sub-paragraphs to align with first character of parent paragraph text
+// AFH 33-337 "The Text of the Official Memorandum" §1-12: number and letter
+// each paragraph and subparagraph as 1. / a. / (1) / (a); leave a top-level
+// paragraph flush left and a lone paragraph unnumbered (§2); indent each
+// subparagraph to align with the first character of its parent's text.
+//
+// Rendering takes two passes. The first lays the content out hidden, so that
+// Typst's own show rules resolve, and buffers each paragraph, table, and block
+// quote with the nesting level it was found at. The second emits the buffer,
+// where those show rules are out of scope and numbering can be assigned in
+// document order.
 #let render-body(content, memo-style: "usaf") = {
   let PAR_BUFFER = state("PAR_BUFFER")
   PAR_BUFFER.update(())
@@ -105,9 +118,7 @@
   let ITEM_FIRST_PAR = state("ITEM_FIRST_PAR")
   ITEM_FIRST_PAR.update(false)
 
-  // The first pass parses paragraphs, list items, etc. into standardized arrays
   let first-pass = {
-    // Collect pars with nesting level
     show par: p => context {
       let nest-level = NEST_DOWN.get().at(0) - NEST_UP.get().at(0)
       let is-heading = IS_HEADING.get()
@@ -133,7 +144,7 @@
 
       p
     }
-    // Collect tables — captured as-is without paragraph numbering
+    // Tables are buffered whole; nothing inside one takes a paragraph number.
     show table: t => context {
       PAR_BUFFER.update(pars => {
         pars.push((
@@ -145,6 +156,31 @@
       })
       t
     }
+    // AFH 33-337 numbers paragraphs and letters subparagraphs, and a body
+    // sometimes has to hold lines that are neither: a roster of names, a quoted
+    // passage, an address. The block quote is where an author says so — its
+    // content reaches the page verbatim, taking no number, letter, or bullet.
+    //
+    // Returning `none` rather than the quote is what makes that true: the
+    // quote's own paragraphs are never laid out here, so the `show par` above
+    // never sees them and cannot number them. The buffered body is emitted in
+    // the second pass, where these show rules are out of scope. Typst's own
+    // block-quote framing (padding, attribution) is dropped with the element.
+    //
+    // The nesting level rides along so a quote inside a list item lines up with
+    // that item's text (see the emission below).
+    show quote.where(block: true): q => context {
+      let nest-level = NEST_DOWN.get().at(0) - NEST_UP.get().at(0)
+      PAR_BUFFER.update(pars => {
+        pars.push((
+          content: q.body,
+          nest-level: nest-level,
+          kind: "quote",
+        ))
+        pars
+      })
+      none
+    }
     {
       show heading: h => {
         IS_HEADING.update(true)
@@ -152,9 +188,9 @@
         IS_HEADING.update(false)
       }
 
-      // Convert list/enum items to pars
-      // Note: No context wrapper here - state updates don't need it and cause
-      // layout convergence issues with many list items
+      // List and enum items become paragraphs carrying a nesting level. No
+      // `context` wrapper: state updates do not need one, and one here fails
+      // to converge on a body with many list items.
       show enum.item: it => {
         NEST_DOWN.step()
         ITEM_FIRST_PAR.update(true)
@@ -169,9 +205,9 @@
       }
 
       {
-        // Typst bug bandaid:
-        // `show par` will not collect wrappers unless there is content outside
-        // Add zero width space to always have content outside of wrapper
+        // `show par` does not capture an element that fills its paragraph
+        // whole, so a zero-width space follows each wrapper to keep some
+        // content outside it.
         show strong: it => {
           [#it#sym.zws]
         }
@@ -194,15 +230,14 @@
   // Second pass: consume par buffer
   //
   // PAR_BUFFER item dictionary layout:
-  //   item.content    — the paragraph body or table element
+  //   item.content    — the paragraph body, table element, or block-quote body
   //   item.nest-level — nesting depth (−1 for tables)
-  //   item.kind       — "par", "heading", "table", or "continuation"
+  //   item.kind       — "par", "heading", "table", "continuation", or "quote"
   context {
     let heading-buffer = none
-    // Filter out zero-width paragraphs so that an empty body (e.g. an
-    // indorsement with an action line but no text) emits nothing and
-    // collapses to zero vertical space. Tables are always kept regardless
-    // of measured width.
+    let heading-level = 0
+    // Zero-width paragraphs are dropped, so an empty body emits nothing and
+    // collapses to zero vertical space. A table is kept whatever it measures.
     let items = PAR_BUFFER.get().filter(item =>
       item.kind == "table" or measure(item.content).width > 0pt
     )
@@ -211,9 +246,9 @@
     let par-count = items.filter(item => item.kind == "par").len()
     let total-count = items.len()
 
-    // Track paragraph numbers per level manually to avoid nested-context
-    // counter propagation issues.  Dictionary maps level index (as string)
-    // to the current counter value at that level.
+    // Numbers are tracked in a dictionary keyed by level index (as a string)
+    // rather than in counters, whose updates do not propagate out of the
+    // nested contexts this loop runs in.
     let max-levels = paragraph-config.numbering-formats.len()
     let level-counts = (:)
     for lvl in range(max-levels) {
@@ -227,27 +262,40 @@
       let kind = item.kind
       let item-content = item.content
 
-      // Buffer headings for prepend to the next rendered element
+      // A buffered heading runs into this element only when the two belong to
+      // the same item: a later block of this list item ("continuation"), or,
+      // at top level, the next paragraph. The first block of the *next* item,
+      // a table (nest-level −1, so the level test alone excludes it), a block
+      // quote (verbatim: a heading prepended to it would be ink the author did
+      // not put inside the quote), and another heading all fail the test, and
+      // each would otherwise carry the heading's text somewhere it was not
+      // authored. Those emit the heading on its own line, the treatment a
+      // heading before a table takes.
+      if heading-buffer != none {
+        let runs-in = (
+          kind not in ("heading", "quote")
+            and item.nest-level == heading-level
+            and (heading-level == 0 or kind == "continuation")
+        )
+        if runs-in {
+          item-content = [#strong[#heading-buffer.] #item-content]
+        } else {
+          if any-emitted { blank-line() }
+          strong[#heading-buffer.]
+          any-emitted = true
+        }
+        heading-buffer = none
+      }
+
+      // Buffer this heading for the next element to run into. The level it was
+      // captured at rides along: the run-in test needs it, and the buffer is
+      // read one iteration later, by which time `item` is the *next* element.
       if kind == "heading" {
         heading-buffer = item-content
+        heading-level = item.nest-level
         continue
       }
 
-      // Prepend buffered heading to the next non-heading element
-      if heading-buffer != none {
-        if kind == "table" {
-          // Tables cannot have inline text prepended; emit heading as
-          // a standalone bold line above the table
-          blank-line()
-          strong[#heading-buffer.]
-          heading-buffer = none
-        } else {
-          item-content = [#strong[#heading-buffer.] #item-content]
-          heading-buffer = none
-        }
-      }
-
-      // Format based on element kind
       let nest-level = item.nest-level
       let indent-fn = if memo-style == "daf" {
         (level, _counts) => calculate-daf-indent(level)
@@ -257,6 +305,35 @@
       let final-par = {
         if kind == "table" {
           render-memo-table(item-content)
+        } else if kind == "quote" {
+          // A block quote is the body's unlabeled block: no number, no letter,
+          // no bullet — the author's lines as written. It is placed, not
+          // processed, which is what lets a memorandum carry a roster of names,
+          // an address, or a quoted passage without AFH 33-337 numbering
+          // claiming the first line of it.
+          //
+          // Two things are imposed, and both serve that reading.
+          //
+          // Where the block starts: at the offset where the text of the
+          // paragraph it sits in starts, so a quote inside a subparagraph hangs
+          // under that subparagraph's text instead of falling back to the left
+          // margin. `pad` shifts the whole block, where a continuation takes a
+          // first-line `h(..)`: a quote is kept for its line structure, and
+          // lines that wrapped back to the margin would read as a block other
+          // than the one authored. Top level offsets by 0pt — flush at the
+          // margin, where an unnumbered line belongs.
+          //
+          // How its own paragraphs are spaced: `par.leading` and `par.spacing`
+          // are both half an em in a memorandum, so a paragraph break inside
+          // the quote would land on the page as an ordinary line break and read
+          // as one block where the author wrote two. A blank line — what the
+          // body puts between its own paragraphs — keeps that break visible.
+          let quoted = {
+            set par(spacing: spacing.line + line-stride())
+            item-content
+          }
+          let offset = paragraph-text-offset(nest-level, level-counts, indent-fn)
+          if offset == 0pt { quoted } else { pad(left: offset, quoted) }
         } else if kind == "continuation" {
           // Continuation block within a multi-block list item:
           // indent to align with preceding numbered paragraph's text, no new number.
@@ -279,7 +356,6 @@
             [#h(daf-paragraph.top-first-line-indent)#item-content]
           }
         } else if par-count > 1 {
-          // Apply paragraph numbering per AFH 33-337 §2
           let par = format-par(item-content, nest-level, level-counts, indent-fn)
           level-counts.insert(str(nest-level), level-counts.at(str(nest-level)) + 1)
           level-counts = reset-levels-from(level-counts, nest-level + 1, max-levels)
@@ -296,46 +372,50 @@
       // `context { for … }` block, where it does not combine with the
       // preceding header section's block-spacing the same way as a
       // top-level blank-line() call.
-      // AFH 33-337 §11 rule applied below: "Avoid dividing a paragraph of
-      // less than four lines between two pages"
       if any-emitted { blank-line() }
       any-emitted = true
       if i == total-count {
+        // AFH 33-337 "Signature Block": "Do not place the signature element on a
+        // continuation page by itself." The signature block that follows has no
+        // keep-with-previous of its own — Typst has no such property — so the
+        // anchor comes from this side: a sticky last element is carried onto the
+        // next page along with the signature instead of breaking away from it.
+        //
+        // Bounded, because a sticky block does not *split* at a page boundary,
+        // it relocates whole; applied to a half-page block that turns an
+        // ordinary mid-paragraph break into a wholesale jump. A third of the
+        // text block covers what a memorandum actually ends on — a closing
+        // paragraph, a short table — while leaving the long block to be divided
+        // by the break, which leaves its own tail on the continuation page for
+        // the signature to sit under.
+        //
+        // The budget is a fixed fraction rather than the space actually left
+        // below this element, which is the question one would rather ask. A
+        // position-dependent test cannot be answered honestly here: on the first
+        // layout pass `here()` resolves against an empty introspector and reports
+        // the top of the page, so every element measures as fitting and
+        // relocates — and from the top of its new page the same test agrees, so
+        // the wrong answer is a fixed point that later passes never revisit.
         let available-width = page.width - spacing.margin * 2
-
-        // Use the shared measured line stride used by blank-line spacing.
-        let line-height = {
-          let cached = LINE_STRIDE.get()
-          if cached != none {
-            cached
-          } else {
-            let one-line = measure(par(spacing: 0pt)[x]).height
-            measure(par(spacing: 0pt)[x#linebreak()x]).height - one-line
-          }
-        }
-        // Calculate last item's height
-        let par-height = measure(final-par, width: available-width).height
-
-        let estimated-lines = calc.ceil(par-height / line-height)
-
-        if estimated-lines < 4 {
-          // Short content (< 4 lines): make sticky to keep with signature
-          block(sticky: true)[#final-par]
-        } else {
-          // Longer content (≥ 4 lines): use default breaking behavior
-          block(breakable: true)[#final-par]
-        }
+        let relocation-budget = (page.height - spacing.margin * 2) / 3
+        let element-height = measure(final-par, width: available-width).height
+        block(sticky: element-height <= relocation-budget)[#final-par]
       } else {
-        // Wrap every non-last emission in a plain block so the document-wide
-        // `set block(above: spacing.line)` rule contributes the same 0.5em
-        // gap above every paragraph, including the first (matching the
-        // single-paragraph case which always passes through the
-        // `i == total-count` branch) and middle paragraphs (so the gap
-        // between the 1st and 2nd doesn't shrink relative to the gap
-        // between the 2nd-to-last and last). Bare emission would skip
-        // `block.above` entirely and visibly compress the spacing.
+        // A plain block, so that the document-wide `set block(above:
+        // spacing.line)` contributes the same 0.5em above every paragraph as it
+        // does above the last one. A bare emission skips `block.above` and
+        // visibly compresses the gap.
         block[#final-par]
       }
+    }
+
+    // A heading with nothing after it never ran into anything, and the buffer
+    // dies with the loop unless it is drained here. Sticky for the same reason
+    // the last item is: a standalone heading is one line, so it keeps with the
+    // signature block rather than opening a page alone.
+    if heading-buffer != none {
+      if any-emitted { blank-line() }
+      block(sticky: true)[#strong[#heading-buffer.]]
     }
   }
 }
