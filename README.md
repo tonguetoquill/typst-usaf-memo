@@ -411,7 +411,7 @@ Contributions are welcome! Please explore `src/` for core functions and `templat
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
 External assets used in this project:
 
