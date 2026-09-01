@@ -17,19 +17,22 @@
 /// caller wrote between two closing sections: past the signature block, a
 /// memorandum's body is over.
 ///
+/// The marker is looked for among the direct children, and among the whole of
+/// `it` where a closing section is all there is. A closing section emitted from
+/// a code block or a loop still surfaces one, since Typst merges the labelled
+/// sequences it joins into the enclosing markup; one a caller nested inside a
+/// container of their own — a `block`, a `grid` cell — does not.
+///
 /// - it (content): Content handed to `mainmatter`
 /// -> array: the body content and the closing content
 #let split-closing(it) = {
+  if it.at("label", default: none) == <usaf-memo-closing> { return ([], it) }
   if not it.has("children") { return (it, []) }
   let children = it.children
   let boundary = children.position(child => child.at("label", default: none) == <usaf-memo-closing>)
   if boundary == none { return (it, []) }
-  // `().join()` and a one-element join both need coercing back to content.
-  let rejoin = parts => {
-    let joined = parts.join()
-    if joined == none { [] } else { joined }
-  }
-  (rejoin(children.slice(0, boundary)), rejoin(children.slice(boundary)))
+  // `sum` over `join`: an empty half is `none` from a join and `[]` from this.
+  (children.slice(0, boundary).sum(default: []), children.slice(boundary).sum(default: []))
 }
 
 /// Show rule for the memorandum body, applying AFH 33-337 paragraph numbering

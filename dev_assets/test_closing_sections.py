@@ -6,8 +6,12 @@ be split back out before `render-body` rebuilds the body from its paragraph
 buffer, or they lose the placement they are made of and their surviving lines
 are numbered as body paragraphs.
 
-The two fixtures are the same memorandum written both ways. Rendering them to
-the same glyphs at the same positions is the invariant.
+The fixtures are the same memorandum written three ways: the function form,
+which never hands a closing section to the rebuild, and two show-rule forms,
+one writing its closing sections as markup children and one emitting them from
+a code block, which is what a caller looping over indorsements does and the
+shape a split reading direct children could miss. Rendering all three to the
+same glyphs at the same positions is the invariant.
 """
 
 from pathlib import Path
@@ -25,9 +29,11 @@ except ImportError as exc:
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FONT_PATHS = [str(REPO_ROOT), str(REPO_ROOT / "fonts")]
+BASELINE = "function"
 FIXTURES = {
-    "show rule": REPO_ROOT / "dev_assets" / "test_closing_sections_showrule.typ",
     "function": REPO_ROOT / "dev_assets" / "test_closing_sections_function.typ",
+    "show rule": REPO_ROOT / "dev_assets" / "test_closing_sections_showrule.typ",
+    "show rule, nested": REPO_ROOT / "dev_assets" / "test_closing_sections_nested.typ",
 }
 # The signature block anchors 4.5in from the page's left edge (AFH 33-337), not
 # at the 1in left margin the body sits on.
@@ -61,11 +67,12 @@ def render(fixture: Path) -> list[tuple[float, float, str]]:
 def main() -> int:
     rendered = {name: render(path) for name, path in FIXTURES.items()}
 
-    if rendered["show rule"] != rendered["function"]:
-        only = set(map(repr, rendered["show rule"])) ^ set(map(repr, rendered["function"]))
+    for name, lines in rendered.items():
+        if name == BASELINE or lines == rendered[BASELINE]:
+            continue
+        only = set(map(repr, lines)) ^ set(map(repr, rendered[BASELINE]))
         raise AssertionError(
-            "`#show: mainmatter` and `#mainmatter[…]` rendered differently: "
-            + ", ".join(sorted(only))
+            f"{name!r} and {BASELINE!r} rendered differently: " + ", ".join(sorted(only))
         )
 
     lines = rendered["show rule"]
@@ -87,7 +94,7 @@ def main() -> int:
     if numbered:
         raise AssertionError(f"Closing section lines took body paragraph numbers: {numbered}")
 
-    print(f"Closing-section check passed: {len(lines)} lines identical across both forms.")
+    print(f"Closing-section check passed: {len(lines)} lines identical across all {len(FIXTURES)} forms.")
     return 0
 
 
