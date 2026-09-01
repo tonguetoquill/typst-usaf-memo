@@ -220,6 +220,10 @@
   closing-line: none,
   signature-blank-lines: 4,
   signing-field: none,
+  // Lines of breaking height reserved below the block for the backmatter
+  // lead-in and its continuation note. Reclaimed immediately after, so it moves
+  // where the block may break and nothing else.
+  reserved-lines: 0,
 ) = {
   signature-lines = ensure-array(signature-lines)
   // Blank is no line, whichever occupant the caller passes.
@@ -305,10 +309,18 @@
               // of the line above" — 2-character indent ≈ 1em in Times New Roman 12pt
               par(hanging-indent: .5em, line)
             }
+            // The page the backmatter compares its own against. Must stay
+            // inside the unbreakable block: a marker outside one travels with
+            // the section that moves.
+            #metadata(none)<usaf-memo-flow-anchor>
+            #v(stride * reserved-lines)
           ]
         ]
       ]
     ]
+    // The reservation counted toward breaking height only; the backmatter
+    // emits its own lead-in below.
+    v(stride * -reserved-lines)
   }
 }
 
@@ -394,6 +406,10 @@
   section-label,
   numbering-style: none,
   continuation-label: none,
+  // Lines of breaking height reserved below this section for the lead-in and
+  // continuation note of the section that follows it. Reclaimed immediately
+  // after, so it moves where a break may fall and nothing else.
+  reserved-lines: 0,
 ) = {
   let formatted-content = {
     // `text()` keeps the label from being laid out as a paragraph of its own.
@@ -407,32 +423,42 @@
     }
   }
 
+  // Attachments pass continuation-label ("… (listed on next page):" per AFH 33-337).
+  // cc: and DISTRIBUTION: use a neutral default — "listed" applies to attachment lists only.
+  let continuation-text = if continuation-label != none {
+    text()[#continuation-label]
+  } else {
+    text()[#(section-label + " (continued on next page)")]
+  }
+
   context {
-    let available-space = page.height - here().position().y - 1in
-    if measure(formatted-content).height > available-space {
-      // Attachments pass continuation-label ("… (listed on next page):" per AFH 33-337).
-      // cc: and DISTRIBUTION: use a neutral default — "listed" applies to attachment lists only.
-      let continuation-text = if continuation-label != none {
-        text()[#continuation-label]
-      } else {
-        text()[#(section-label + " (continued on next page)")]
-      }
-      continuation-text
-    }
     // `breakable: false` lets Typst's own breaker move the section to the next
     // page as a unit; an explicit pagebreak here would feed this context's
     // layout query back into its own input and the two would chase each other
     // until layout gave up.
     //
-    // KNOWN DEFECT: the note above is unreachable in the case it exists for.
-    // `here()` travels inside the section, so once the section has moved the
-    // test runs from the top of its new page, finds a page of free space, and
-    // agrees it fits; later passes agree with it. A list running onto the next
-    // page therefore carries no "(listed on next page)" note, which AFH 33-337
-    // requires. Deciding the note from where the section landed needs an anchor
-    // that stays behind, and a zero-height marker is not one: it is carried
-    // along with the section.
-    block(breakable: false, formatted-content)
+    // The note is decided by observing where that breaker put the block. The
+    // nearest anchor above is the signature block or the preceding section — an
+    // element with real height that stays on the page this section departs.
+    //
+    // Do not reduce this to a `here()` reading. `here()` sits in the section and
+    // travels with it, so once the section has moved it reports the top of the
+    // page it moved to and every section measures as fitting. The room the note
+    // needs is reserved inside the anchor's own unbreakable block, so the
+    // decision can never move its own input.
+    let above = query(selector(<usaf-memo-flow-anchor>).before(here()))
+    let below = query(selector(<usaf-memo-flow-anchor>).after(here()))
+    if above.len() > 0 and below.len() > 0 {
+      if below.first().location().page() > above.last().location().page() {
+        continuation-text
+      }
+    }
+    block(breakable: false)[
+      #metadata(none)<usaf-memo-flow-anchor>
+      #formatted-content
+      #v(line-stride() * reserved-lines)
+    ]
+    v(line-stride() * -reserved-lines)
   }
 }
 
@@ -465,27 +491,46 @@
     pagebreak(weak: true)
   }
 
+  // Collected first because a section's reservation depends on whether another
+  // follows it: with nothing below, no note can be owed.
+  let sections = ()
+
   if attachments != none and attachments.len() > 0 {
-    calculate-backmatter-spacing(true)
     let attachment-count = attachments.len()
     let section-label = if attachment-count == 1 { "Attachment:" } else { str(attachment-count) + " Attachments:" }
     let continuation-label = (
       (if attachment-count == 1 { "Attachment" } else { str(attachment-count) + " Attachments" })
         + " (listed on next page):"
     )
-    // AFH 33-337: a single attachment is not numbered; numbering applies to two or more.
-    let numbering-style = if attachment-count == 1 { none } else { "1." }
-    render-backmatter-section(attachments, section-label, numbering-style: numbering-style, continuation-label: continuation-label)
+    sections.push((
+      content: attachments,
+      label: section-label,
+      // AFH 33-337: a single attachment is not numbered; numbering applies to two or more.
+      numbering-style: if attachment-count == 1 { none } else { "1." },
+      continuation-label: continuation-label,
+    ))
   }
 
   if cc != none and cc.len() > 0 {
-    calculate-backmatter-spacing(attachments == none or attachments.len() == 0)
-    render-backmatter-section(cc, "cc:")
+    sections.push((content: cc, label: "cc:", numbering-style: none, continuation-label: none))
   }
 
   if distribution != none and distribution.len() > 0 {
-    calculate-backmatter-spacing((attachments == none or attachments.len() == 0) and (cc == none or cc.len() == 0))
-    render-backmatter-section(distribution, "DISTRIBUTION:")
+    sections.push((content: distribution, label: "DISTRIBUTION:", numbering-style: none, continuation-label: none))
+  }
+
+  for (index, section) in sections.enumerate() {
+    calculate-backmatter-spacing(index == 0)
+    // The next section's one blank line of lead-in, plus one for its note. The
+    // signature block reserves 3: the first section's lead-in is two lines.
+    let reserved-lines = if index + 1 < sections.len() { 2 } else { 0 }
+    render-backmatter-section(
+      section.content,
+      section.label,
+      numbering-style: section.numbering-style,
+      continuation-label: section.continuation-label,
+      reserved-lines: reserved-lines,
+    )
   }
 }
 

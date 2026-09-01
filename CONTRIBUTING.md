@@ -10,7 +10,7 @@ Thank you for your interest in contributing! This project is a [Typst](https://t
    cd tonguetoquill-usaf-memo
    ```
 
-2. **Install Typst** — follow the [official instructions](https://github.com/typst/typst?tab=readme-ov-file#installation).
+2. **Install Typst 0.15.1 or newer** — follow the [official instructions](https://github.com/typst/typst?tab=readme-ov-file#installation). The `dev_assets/` checks compile through the Python `typst` package instead, which tracks its own release line; `requirements.txt` floors it at the matching 0.15 series.
 
 3. **Build the example PDFs** to verify everything works:
    ```bash
@@ -42,6 +42,7 @@ Thank you for your interest in contributing! This project is a [Typst](https://t
    ```bash
    python3 dev_assets/test_spacing_regression.py    # blank-line spacing is uniform
    python3 dev_assets/test_closing_sections.py      # closing sections survive `#show: mainmatter`
+   python3 dev_assets/test_continuation_note.py     # a section leaving a page says so on that page
    ```
 5. **Visually inspect** the generated PDFs against AFH 33-337 formatting standards.
 
