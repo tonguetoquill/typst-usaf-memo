@@ -453,12 +453,20 @@
         continuation-text
       }
     }
-    block(breakable: false)[
-      #metadata(none)<usaf-memo-flow-anchor>
-      #formatted-content
-      #v(line-stride() * reserved-lines)
-    ]
-    v(line-stride() * -reserved-lines)
+    // A section taller than a page cannot move as a unit, so it splits where
+    // the page ends rather than overflowing it, and anchors its last page too:
+    // the section below measures from where this one ends.
+    let reserve = line-stride() * reserved-lines
+    layout(region => {
+      let oversized = measure(formatted-content, width: region.width).height + reserve > region.height
+      block(breakable: oversized)[
+        #metadata(none)<usaf-memo-flow-anchor>
+        #formatted-content
+        #if oversized [#metadata(none)<usaf-memo-flow-anchor>]
+        #v(reserve)
+      ]
+    })
+    v(-reserve)
   }
 }
 

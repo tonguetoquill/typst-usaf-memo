@@ -37,7 +37,7 @@ Maintained by [TTQ](https://www.tonguetoquill.com).
 2. Download the project fonts and upload them to your project folder. Recommended fonts from the `fonts/` directory are:
 
 - `NimbusRomNo9L-Reg.otf`, `NimbusRomNo9L-RegIta.otf`, `NimbusRomNo9L-Med.otf`, `NimbusRomNo9L-MedIta.otf` — letterhead and body text (open-source Times New Roman–compatible serif)
-- `Cinzel-Regular.ttf` — optional decorative font for footer taglines
+- `SpectralSC-Regular.ttf`, `SpectralSC-Italic.ttf` — optional small-caps face for footer taglines
 
 You can either clone the repository to pull all fonts or download just the files you need. All font files are available from the `fonts/` directory in the repo: https://github.com/nibsbin/tonguetoquill-usaf-memo/tree/main/fonts
 
@@ -61,9 +61,9 @@ cd my-memo
 3. Download the required fonts:
 ```bash
 # Download the fonts used by the templates (example). Copy these into your project root or `fonts/` directory.
-curl -L -o Cinzel-Regular.ttf https://github.com/nibsbin/tonguetoquill-usaf-memo/raw/main/fonts/Cinzel/Cinzel-Regular.ttf
 curl -L -o CopperplateCC-Bold.otf https://github.com/nibsbin/tonguetoquill-usaf-memo/raw/main/fonts/CopperplateCC/CopperplateCC-Bold.otf
-curl -L -o CopperplateCC-Heavy.otf https://github.com/nibsbin/tonguetoquill-usaf-memo/raw/main/fonts/CopperplateCC/CopperplateCC-Heavy.otf
+curl -L -o SpectralSC-Regular.ttf https://github.com/nibsbin/tonguetoquill-usaf-memo/raw/main/fonts/SpectralSC/SpectralSC-Regular.ttf
+curl -L -o SpectralSC-Italic.ttf https://github.com/nibsbin/tonguetoquill-usaf-memo/raw/main/fonts/SpectralSC/SpectralSC-Italic.ttf
 curl -L -o LiberationMono-Regular.ttf https://github.com/nibsbin/tonguetoquill-usaf-memo/raw/main/fonts/LiberationMono/LiberationMono-Regular.ttf
 curl -L -o NimbusRomNo9L-Reg.otf https://github.com/nibsbin/tonguetoquill-usaf-memo/raw/main/fonts/NimbusRomanNo9L/NimbusRomNo9L-Reg.otf
 curl -L -o NimbusRomNo9L-RegIta.otf https://github.com/nibsbin/tonguetoquill-usaf-memo/raw/main/fonts/NimbusRomanNo9L/NimbusRomNo9L-RegIta.otf
@@ -158,6 +158,8 @@ The template automatically manages page breaks for closing sections according to
 - **Attachments**: "Do not divide attachment listings between two pages"
 - **Distribution**: "Do not divide distribution lists between two pages"
 - **CC sections**: Consistent handling with other sections
+- **Continuation notes**: a section that moves to the next page leaves "3 Attachments (listed on next page):" or "(continued on next page)" on the page it leaves
+- **Oversized sections**: a list taller than a page breaks where the page ends rather than running past the bottom margin
 
 ### Inline tables
 
@@ -242,6 +244,7 @@ Configures the memorandum header and establishes document-wide settings. Applied
   letterhead-emblem: none,                                   // Optional image opposite the seal (right corner)
   letterhead-emblem-height: 1in,                             // Emblem fit-box height; reduce for shorter emblems
   date: none,                                                // Date (defaults to today; also accepts ISO string "YYYY-MM-DD")
+  date-field: none,                                          // Optional fill-in widget printed on the date line in place of today's date when `date` is unset
   memo-for: ("[OFFICE1]", "[OFFICE2]"),                     // Recipients array (rendered in uppercase)
   memo-from: ("[YOUR/SYMBOL]", "[Organization]", "[Address]"), // Sender info array (omit for a Memorandum for Record)
   subject: "[Your Subject in Title Case - Required]",        // Subject line
@@ -256,7 +259,7 @@ Configures the memorandum header and establishes document-wide settings. Applied
   // Classification and branding
   classification-level: none,                               // e.g. "UNCLASSIFIED", "CUI", "CONFIDENTIAL", "SECRET", or "TOP SECRET"
   dissemination: none,                                      // Appended to the banner as "LEVEL//DISSEMINATION" (e.g. "SP-CTRL")
-  footer-tag-line: none,                                    // Custom footer tagline (e.g., "semper supra")
+  footer-tag-line: none,                                    // Custom footer tagline (e.g., "semper supra"), set in Spectral SC
 
   // CUI designation indicator block (DoDM 5200.48, Table 1) — page 1, bottom right.
   // Rendered only when classification-level starts with "CUI" and at least one field is set.
@@ -270,6 +273,8 @@ Configures the memorandum header and establishes document-wide settings. Applied
 ```
 
 **References placement.** A single reference is rendered inline in parentheses after the SUBJECT text; two or more are rendered as a lettered `References:` block per AFH 33-337. Blank entries are dropped before that decision, so a stub left for the user to fill in neither renders on its own nor passes as the lone reference.
+
+**The `date-field` parameter.** A memorandum signed after it is typeset can leave `date` unset and pass `date-field` — a PDF form field, say — which prints on the date line instead of the compile date. An indorsement restating that memo then names its FROM and subject only, leaving out the date it does not yet have.
 
 **Responsibilities:**
 - Sets page layout with 1-inch margins
@@ -418,3 +423,6 @@ External assets used in this project:
 - `dow_seal.png` is [public domain](https://www.e-publishing.af.mil/Portals/1/Documents/Official%20Memorandum%20Template_10Nov2020.dotx?ver=M7cny_cp1_QDajkyg0xWBw%3D%3D)
 - `starkindustries_seal.png` is [public domain](https://commons.wikimedia.org/wiki/File:Stark_Industries.png).
 - `NimbusRomNo9L` is under the [GNU GPL, version 2](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html); a copy is also in `fonts/NimbusRomanNo9L/GNU General Public License.txt`. Fonts are from the URW++ foundry.
+- `Copperplate CC` is under the [SIL Open Font License 1.1](https://openfontlicense.org); see `fonts/CopperplateCC/LICENSE.md`.
+- `Spectral SC` is under the [SIL Open Font License 1.1](https://openfontlicense.org); see `fonts/SpectralSC/OFL.txt`. The bundled regular and italic faces are from [the Spectral project](https://github.com/productiontype/Spectral) with their hinting removed.
+- `Liberation Mono` is under the [SIL Open Font License 1.1](https://openfontlicense.org); see `fonts/LiberationMono/LICENSE`.

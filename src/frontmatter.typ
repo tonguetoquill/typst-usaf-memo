@@ -8,6 +8,10 @@
   memo-for: none,
   memo-from: none,
   date: none,
+  // Fill-in widget printed on the date line for an omitted `date`, in place of
+  // today's date. An indorsement header restating the memo then leaves the date
+  // out.
+  date-field: none,
   references: none,
   letterhead-title: "DEPARTMENT OF THE AIR FORCE",
   letterhead-caption: "[YOUR SQUADRON/UNIT NAME]",
@@ -36,7 +40,7 @@
     message: "memo-style must be \"usaf\" or \"daf\"",
   )
 
-  let actual-date = if date == none { datetime.today() } else { date }
+  let actual-date = if date != none { date } else if date-field != none { date-field } else { datetime.today() }
 
   // The banner is `LEVEL` or `LEVEL//SUFFIX`. `classification-level` is an enum
   // (a `str`), but `dissemination` may arrive as content, which `str + str`
@@ -138,7 +142,7 @@
           bottom + center,
           dy: -0.625in,
           align(center)[
-            #text(fill: LETTERHEAD_COLOR, font: "cinzel", size: 15pt)[#footer-tag-line]
+            #text(fill: LETTERHEAD_COLOR, font: "Spectral SC", size: 15pt)[#footer-tag-line]
           ],
         )
       }
@@ -206,7 +210,7 @@
 
   [#metadata((
     subject: subject,
-    original-date: actual-date,
+    original-date: if date == none and date-field != none { none } else { actual-date },
     original-from: first-or-value(memo-from),
     body-font: body-font,
     font-size: font-size,

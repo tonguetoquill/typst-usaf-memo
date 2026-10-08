@@ -4,18 +4,6 @@ All notable changes to `tonguetoquill-usaf-memo` are documented here.
 
 ---
 
-## [Unreleased]
-
-### Changed
-
-- **Requires Typst 0.15.1 or newer.** The manifest's `compiler` floor moves from 0.14.0, so the package no longer loads on 0.14.x. Nothing in the source needed the newer compiler: all four templates render identically — same page, position and text for every line — under 0.14.0 and 0.15.1, and the closing-section sweep holds on both.
-
-### Fixed
-
-- **A backmatter list running onto the next page says so on the page it leaves.** The note AFH 33-337 wants there — "3 Attachments (listed on next page):", or the neutral "(continued on next page)" for `cc:` and `DISTRIBUTION:` — is decided by reading the page the section landed on rather than by predicting it from inside the section, which reported the top of the page it had already moved to and so never fired. Each closing block now reserves the following section's lead-in and note line as breaking height, reclaimed immediately, so the note is guaranteed room on the departing page; where that reservation does not fit, the signature block travels with its sections instead of stranding them. Layout is unchanged wherever nothing splits.
-
----
-
 ## [5.0.0] — 2026-09-01
 
 Synchronises the package with the `usaf_memo@0.3.0` quill in
@@ -30,6 +18,7 @@ spellings were translated on the way in.
 - **Block quotes as the body's unlabeled block.** A `quote(block: true)` in the body reaches the page as written, taking no number, letter, or bullet — for the lines a memorandum has to carry that AFH 33-337 numbering has no claim on: a roster of names, an address, a quoted passage. A quote inside a subparagraph hangs under that subparagraph's text; one at top level sits flush at the margin.
 - **`approval-authority` on `indorsement`.** Selects the action line's wording by the indorsement's place in the coordination chain: the approval authority (the last indorsement) reads Approve / Disapprove, every coordinating official before it reads Concur / Nonconcur. The caller owns it because only the caller can see whether further indorsements follow.
 - **`date-field` on `indorsement`.** An interactive fill-in widget — a PDF form field, say — anchored in the date slot an omitted `date` reserves. Without one the slot keeps its ruled baseline for a handwritten date.
+- **`date-field` on `frontmatter`.** A fill-in widget — a PDF form field, say — printed on the memorandum's date line when `date` is unset, in place of today's date. An indorsement restating that memo then names its FROM and subject only, rather than printing a second, unlinked widget between the commas of its header.
 - **`date-pattern` is exported.** The date pattern a memo style prints, so a caller that pre-formats a date matches the package instead of restating it. `display-date` accepts the pre-formatted content in turn.
 - **Letterhead captions shrink to fit.** A caption too long for the space between the seal and the page's right edge is scaled down to it rather than running underneath the seal. A caption that already fits keeps its set size.
 
@@ -44,15 +33,20 @@ spellings were translated on the way in.
 - **A last body element sticks to the signature block only within a relocation budget** — a third of the text block — rather than on an estimated line count. A sticky block relocates whole instead of splitting, so an unbounded rule turned an ordinary mid-paragraph break into a wholesale jump.
 - **A heading runs into the element after it only where the two belong together**, and one with nothing after it is emitted on its own line instead of being dropped.
 - **`create-auto-grid` accepts content cells**, not `str` alone.
+- **The footer tag line is set in Spectral SC**, not Cinzel. Spectral SC has true small caps and an italic, so a `footer-tag-line` reads in small caps as before and can now carry `_emphasis_`. Only the regular and italic faces ship, with their hinting removed, so `*bold*` in a tag line prints regular. If Spectral SC is not installed the tag line falls back to the default font; add `fonts/SpectralSC/` to your font path.
+- **Requires Typst 0.15.1 or newer.** The manifest's `compiler` floor moves from 0.14.0, so the package no longer loads on 0.14.x. Nothing in the source needed the newer compiler: all four templates render identically — same page, position and text for every line — under 0.14.0 and 0.15.1, and the closing-section sweep holds on both.
 
 ### Removed
 
 - **`process-indorsements`.** Indorsements are rendered by calling `indorsement` in document order; nothing called it.
+- **`fonts/Cinzel/` and `fonts/CopperplateCC/CopperplateCC-Heavy.otf`.** Cinzel is replaced by Spectral SC, above. The letterhead sets Copperplate CC in bold only, which selects `CopperplateCC-Bold.otf`; the Heavy face was never drawn.
 
 ### Fixed
 
 - **`#show: mainmatter` no longer consumes the closing sections.** As a show rule `mainmatter` is handed the whole remainder of the document, and `render-body` rebuilds what it is given from a buffer of paragraphs, tables, and block quotes — so a `backmatter` or `indorsement` written after it lost the placement it is made of (the 4.5 in signature anchor, the attachment and cc labels, the indorsement header) and had its surviving lines numbered as body paragraphs. `backmatter` and `indorsement` now label their output, and `mainmatter` splits the content there and emits the closing sections untouched. The function form, `#mainmatter[…]`, renders exactly as before.
 - **The banner's dissemination suffix no longer splits into `CUI// NF`** when `dissemination` arrives as content.
+- **A closing list taller than a page no longer runs off it.** Each attachment, cc and distribution section moved to the next page as an unbreakable block, so one taller than a whole page overflowed the bottom margin and lost its tail without a warning. Such a section now breaks where the page ends, and the section below measures its continuation note from where this one ends. Sections that fit a page are laid out as before.
+- **A backmatter list running onto the next page says so on the page it leaves.** The note AFH 33-337 wants there — "3 Attachments (listed on next page):", or the neutral "(continued on next page)" for `cc:` and `DISTRIBUTION:` — is decided by reading the page the section landed on rather than by predicting it from inside the section, which reported the top of the page it had already moved to and so never fired. Each closing block now reserves the following section's lead-in and note line as breaking height, reclaimed immediately, so the note is guaranteed room on the departing page; where that reservation does not fit, the signature block travels with its sections instead of stranding them. Layout is unchanged wherever nothing splits.
 
 ---
 
