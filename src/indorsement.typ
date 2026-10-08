@@ -94,7 +94,7 @@
       // Typst trims the edge spaces (the same treatment the inline reference
       // gets in `render-subject-section`), and keeps the phrase unbroken.
       let separate-page-body = block(breakable: false, sticky: true)[
-        #[#indorsement-label to #box(original-from), #display-date(original-date, memo-style: memo-style), #box(original-subject)]
+        #[#indorsement-label to #box(original-from), #if original-date != none [#display-date(original-date, memo-style: memo-style), ]#box(original-subject)]
         #blank-line()
         #grid(columns: (auto, 1fr), ind-from, ind-date)
         #blank-line()

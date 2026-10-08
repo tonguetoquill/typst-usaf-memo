@@ -4,15 +4,31 @@ All notable changes to `tonguetoquill-usaf-memo` are documented here.
 
 ---
 
-## [Unreleased]
+## [5.1.0] — 2026-10-08
+
+Synchronises the package with the `usaf_memo@0.3.0` quill in
+[`tonguetoquill/airmark-quiver`](https://github.com/tonguetoquill/airmark-quiver).
+Airmark's vendored `src/` was a verbatim copy of this repository plus four
+local patches, so this release takes those patches back and copies its `src/`
+and `fonts/` over as they are.
+
+### Added
+
+- **`date-field` on `frontmatter`.** A fill-in widget — a PDF form field, say — printed on the memorandum's date line when `date` is unset, in place of today's date. An indorsement restating that memo then names its FROM and subject only, rather than printing a second, unlinked widget between the commas of its header.
 
 ### Changed
 
+- **The footer tag line is set in Spectral SC**, not Cinzel. Spectral SC has true small caps and an italic, so a `footer-tag-line` reads in small caps as before and can now carry `_emphasis_`. Only the regular and italic faces ship, with their hinting removed, so `*bold*` in a tag line prints regular. If Spectral SC is not installed the tag line falls back to the default font; add `fonts/SpectralSC/` to your font path.
 - **Requires Typst 0.15.1 or newer.** The manifest's `compiler` floor moves from 0.14.0, so the package no longer loads on 0.14.x. Nothing in the source needed the newer compiler: all four templates render identically — same page, position and text for every line — under 0.14.0 and 0.15.1, and the closing-section sweep holds on both.
 
 ### Fixed
 
+- **A closing list taller than a page no longer runs off it.** Each attachment, cc and distribution section moved to the next page as an unbreakable block, so one taller than a whole page overflowed the bottom margin and lost its tail without a warning. Such a section now breaks where the page ends, and the section below measures its continuation note from where this one ends. Sections that fit a page are laid out as before.
 - **A backmatter list running onto the next page says so on the page it leaves.** The note AFH 33-337 wants there — "3 Attachments (listed on next page):", or the neutral "(continued on next page)" for `cc:` and `DISTRIBUTION:` — is decided by reading the page the section landed on rather than by predicting it from inside the section, which reported the top of the page it had already moved to and so never fired. Each closing block now reserves the following section's lead-in and note line as breaking height, reclaimed immediately, so the note is guaranteed room on the departing page; where that reservation does not fit, the signature block travels with its sections instead of stranding them. Layout is unchanged wherever nothing splits.
+
+### Removed
+
+- **`fonts/Cinzel/` and `fonts/CopperplateCC/CopperplateCC-Heavy.otf`.** Cinzel is replaced by Spectral SC, above. The letterhead sets Copperplate CC in bold only, which selects `CopperplateCC-Bold.otf`; the Heavy face was never drawn.
 
 ---
 

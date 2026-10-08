@@ -5,7 +5,7 @@
 // as show rules, `backmatter` and `indorsement` as functions, so any number of
 // indorsements may follow the memo they endorse.
 //
-// #import "@preview/tonguetoquill-usaf-memo:5.0.0": (
+// #import "@preview/tonguetoquill-usaf-memo:5.1.0": (
 //   backmatter, frontmatter, indorsement, mainmatter,
 // )
 //
